@@ -40,32 +40,6 @@ const FeaturedNews = () => {
           </div>
         </div>
 
-        {/* Secondary News Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-16">
-          <div className="card-3d rounded-xl overflow-hidden relative h-48">
-            <img
-              src="https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=600&h=300&fit=crop"
-              alt="Tech News"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/80 to-red-500/80" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <h3 className="text-2xl font-bold uppercase">TECH TO NEWS</h3>
-            </div>
-          </div>
-
-          <div className="card-3d rounded-xl overflow-hidden relative h-48">
-            <img
-              src="https://images.unsplash.com/photo-1551033406-611cf9a28f67?w=600&h=300&fit=crop"
-              alt="Tech Werfins"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/80 to-purple-500/80" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-              <h3 className="text-2xl font-bold uppercase">TECH Werfins</h3>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

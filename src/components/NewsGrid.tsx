@@ -54,10 +54,25 @@ const NewsGrid = () => {
           <div className="w-16 h-1 bg-primary rounded-full"></div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {newsArticles.map((article) => (
-            <article key={article.id} className="group">
-              <div className="card-3d rounded-xl overflow-hidden relative h-64">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {newsArticles.map((article, index) => {
+            // Create non-uniform layout like Engadget
+            const isLarge = index === 0 || index === 4;
+            const isTall = index === 1 || index === 5;
+            const cardClass = isLarge 
+              ? "md:col-span-2 md:row-span-2" 
+              : isTall 
+                ? "md:row-span-2" 
+                : "";
+            const heightClass = isLarge 
+              ? "h-80" 
+              : isTall 
+                ? "h-64" 
+                : "h-48";
+
+            return (
+              <article key={article.id} className={`group ${cardClass}`}>
+                <div className={`card-3d rounded-xl overflow-hidden relative ${heightClass}`}>
                 <img
                   src={article.image}
                   alt={article.title}
@@ -88,7 +103,8 @@ const NewsGrid = () => {
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
