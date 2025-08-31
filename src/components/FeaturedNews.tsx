@@ -11,13 +11,13 @@ const FeaturedNews = () => {
               SAMSUNG
             </div>
             <h2 className="text-4xl font-bold leading-tight">
-              Latest Heading<br />
-              Headline
+              Revolutionary<br />
+              Samsung Galaxy AI
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              Wuam toltio heardan doleis elit amei, consectetur terup, 
-              adipiscing elit labortse et vitilona tempor laborent lorem 
-              mosto ojpesrc.
+              Discover the groundbreaking artificial intelligence features that are 
+              revolutionizing smartphone photography and user experience in Samsung's 
+              latest flagship device lineup.
             </p>
             <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
               See more
