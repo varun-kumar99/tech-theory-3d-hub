@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import ArticleDetail from "./pages/ArticleDetail";
 import SearchPage from "./pages/SearchPage";
 import AuthPage from "./pages/AuthPage";
+import SignUp from "./pages/SignUp";
 import ProfilePage from "./pages/ProfilePage";
 import BookmarksPage from "./pages/BookmarksPage";
 import CategoryPage from "./pages/CategoryPage";
@@ -16,6 +17,7 @@ import AdminAuth from "./pages/AdminAuth";
 import AdminDashboard from "./pages/AdminDashboard";
 import AuthorDashboard from "./pages/AuthorDashboard";
 import CreateArticle from "./pages/CreateArticle";
+import PublicAuthorProfile from "./pages/PublicAuthorProfile";
 
 const App = () => (
   <AuthProvider>
@@ -27,8 +29,10 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
+            <Route path="/author/:authorName" element={<PublicAuthorProfile />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/signup" element={<SignUp />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, Shield, User } from "lucide-react";
+import { Eye, EyeOff, Shield, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { userService } from "@/services/userService";
 
 const AdminAuth = () => {
+  console.log("AdminAuth rendering");
   const navigate = useNavigate();
   
   // Admin state
@@ -42,11 +44,22 @@ const AdminAuth = () => {
     setIsLoading(true);
     
     try {
-      // Mock admin authentication
-      if (adminData.email === "admin@techtheory.com" && adminData.password === "admin123") {
+      // Check against stored users
+      const users = userService.getAllUsers();
+      const adminUser = users.find(u => 
+        u.email === adminData.email && 
+        u.password === adminData.password && 
+        u.role === 'admin' &&
+        u.status === 'active'
+      );
+
+      // Also allow hardcoded demo credentials if not found in DB (fallback)
+      const isDemoAdmin = adminData.email === "admin@techtheory.com" && adminData.password === "admin123";
+
+      if (adminUser || isDemoAdmin) {
         localStorage.setItem("admin-auth", JSON.stringify({
           role: "admin",
-          user: { name: "Admin", email: adminData.email }
+          user: adminUser ? { name: adminUser.name, email: adminUser.email } : { name: "Admin", email: adminData.email }
         }));
         toast({
           title: "Success",
@@ -86,11 +99,22 @@ const AdminAuth = () => {
     setIsLoading(true);
     
     try {
-      // Mock author authentication
-      if (authorData.email === "author@techtheory.com" && authorData.password === "author123") {
+      // Check against stored users
+      const users = userService.getAllUsers();
+      const authorUser = users.find(u => 
+        u.email === authorData.email && 
+        u.password === authorData.password && 
+        u.role === 'author' &&
+        u.status === 'active'
+      );
+
+      // Also allow hardcoded demo credentials if not found in DB (fallback)
+      const isDemoAuthor = authorData.email === "author@techtheory.com" && authorData.password === "author123";
+
+      if (authorUser || isDemoAuthor) {
         localStorage.setItem("admin-auth", JSON.stringify({
           role: "author",
-          user: { name: "Author", email: authorData.email }
+          user: authorUser ? { name: authorUser.name, email: authorUser.email } : { name: "Author", email: authorData.email }
         }));
         toast({
           title: "Success",
@@ -112,20 +136,6 @@ const AdminAuth = () => {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fillDemoCredentials = (role: 'admin' | 'author') => {
-    if (role === 'admin') {
-      setAdminData({
-        email: "admin@techtheory.com",
-        password: "admin123"
-      });
-    } else {
-      setAuthorData({
-        email: "author@techtheory.com",
-        password: "author123"
-      });
     }
   };
 
@@ -159,7 +169,7 @@ const AdminAuth = () => {
                   Admin
                 </TabsTrigger>
                 <TabsTrigger value="author" className="text-white data-[state=active]:bg-white/30">
-                  <User className="w-4 h-4 mr-2" />
+                  <UserIcon className="w-4 h-4 mr-2" />
                   Author
                 </TabsTrigger>
               </TabsList>
@@ -204,15 +214,6 @@ const AdminAuth = () => {
                   <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign in as Admin"}
                   </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full border-white/30 text-white hover:bg-white/10"
-                    onClick={() => fillDemoCredentials('admin')}
-                  >
-                    Use Demo Admin
-                  </Button>
                 </form>
               </TabsContent>
               
@@ -255,15 +256,6 @@ const AdminAuth = () => {
                   
                   <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign in as Author"}
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full border-white/30 text-white hover:bg-white/10"
-                    onClick={() => fillDemoCredentials('author')}
-                  >
-                    Use Demo Author
                   </Button>
                 </form>
               </TabsContent>

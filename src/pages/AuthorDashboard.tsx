@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
@@ -14,6 +25,7 @@ import {
   Edit3, 
   Trash2, 
   Eye, 
+  EyeOff,
   LogOut,
   PlusCircle,
   Bold,
@@ -26,49 +38,64 @@ import {
   Type,
   Palette,
   Save,
-  User
+  User as UserIcon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-
-interface UserArticle {
-  id: string;
-  title: string;
-  status: 'published' | 'draft' | 'pending';
-  category: string;
-  views: number;
-  likes: number;
-  publishDate: string;
-  content: string;
-}
+import { articleService, Article } from "@/services/articleService";
+import { userService, User } from "@/services/userService";
+import { NAV_CATEGORIES } from "@/constants/categories";
 
 const AuthorDashboard = () => {
   const navigate = useNavigate();
-  const [userArticles, setUserArticles] = useState<UserArticle[]>([
-    {
-      id: "1",
-      title: "My First Article",
-      status: "published",
-      category: "Technology",
-      views: 1250,
-      likes: 45,
-      publishDate: "2024-01-10",
-      content: "This is my first published article content..."
-    },
-    {
-      id: "2",
-      title: "Draft Article",
-      status: "draft",
-      category: "AI",
-      views: 0,
-      likes: 0,
-      publishDate: "",
-      content: "This is a draft article..."
+  const [userArticles, setUserArticles] = useState<Article[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    // Load current user from local storage
+    const auth = localStorage.getItem("admin-auth");
+    if (auth) {
+      try {
+        const authData = JSON.parse(auth);
+        if (authData?.user?.email) {
+          // We need to fetch the latest user data from userService to ensure we have the correct ID and details
+          const allUsers = userService.getAllUsers();
+          // Try to find by email which is unique
+          const user = allUsers.find(u => u.email === authData.user.email);
+          if (user) {
+            setCurrentUser(user);
+          } else {
+             // Fallback to auth data if user not found in DB (e.g. demo user)
+             setCurrentUser({
+                 id: 'demo',
+                 name: authData.user.name || 'Author',
+                 email: authData.user.email,
+                 role: authData.role || 'author',
+                 status: 'active',
+                 joinedDate: new Date().toISOString()
+             });
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing auth data:", error);
+      }
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    const fetchArticles = async () => {
+      if (currentUser?.name) {
+        const allArticles = await articleService.getAllArticles();
+        const myArticles = allArticles.filter(article => article.author === currentUser.name);
+        setUserArticles(myArticles);
+      }
+    };
+    fetchArticles();
+  }, [currentUser]);
 
   const [isAddingArticle, setIsAddingArticle] = useState(false);
-  const [editingArticle, setEditingArticle] = useState<UserArticle | null>(null);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [imageData, setImageData] = useState({
     url: "",
@@ -78,8 +105,14 @@ const AuthorDashboard = () => {
   const [newArticle, setNewArticle] = useState({
     title: "",
     category: "",
+    subCategory: "",
     content: "",
-    status: "draft" as UserArticle['status']
+    excerpt: "",
+    status: "draft" as Article['status'],
+    image: "",
+    localImages: {} as Record<string, string>,
+    isTrending: false,
+    priority: 'medium' as Article['priority']
   });
 
   const [editorState, setEditorState] = useState({
@@ -89,6 +122,9 @@ const AuthorDashboard = () => {
     textColor: "#000000",
     textType: "body" // heading, subheading, body
   });
+  
+  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const checkAuth = () => {
     const auth = localStorage.getItem("admin-auth");
@@ -135,7 +171,75 @@ const AuthorDashboard = () => {
     navigate("/admin");
   };
 
-  const handleSaveArticle = () => {
+  const handleUpdateProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    if (!currentUser.email || !currentUser.name) {
+         toast({
+            title: "Error",
+            description: "Name and Email are required",
+            variant: "destructive"
+         });
+         return;
+    }
+
+    // Update in database
+    if (currentUser.id !== 'demo') {
+        userService.updateUser(currentUser);
+        
+        // Update local session
+        localStorage.setItem("admin-auth", JSON.stringify({
+            role: currentUser.role,
+            user: { name: currentUser.name, email: currentUser.email }
+        }));
+    }
+
+    toast({
+        title: "Success",
+        description: "Profile updated successfully"
+    });
+  };
+
+  const handleProfileImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file size (1MB = 1024 * 1024 bytes)
+      if (file.size > 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size must be less than 1MB",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (currentUser) {
+          setCurrentUser({
+            ...currentUser,
+            avatar: result
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSocialLinkChange = (platform: keyof NonNullable<User['socialLinks']>, value: string) => {
+    if (!currentUser) return;
+    setCurrentUser({
+        ...currentUser,
+        socialLinks: {
+            ...currentUser.socialLinks,
+            [platform]: value
+        }
+    });
+  };
+
+  const handleSaveArticle = async () => {
     if (!newArticle.title || !newArticle.content || !newArticle.category) {
       toast({
         title: "Error",
@@ -145,19 +249,31 @@ const AuthorDashboard = () => {
       return;
     }
 
-    const article: UserArticle = {
+    const article: Article = {
       id: Date.now().toString(),
       title: newArticle.title,
       category: newArticle.category,
+      subCategory: newArticle.subCategory,
       content: newArticle.content,
       status: newArticle.status,
       views: 0,
       likes: 0,
-      publishDate: newArticle.status === 'published' ? new Date().toISOString().split('T')[0] : ""
+      date: newArticle.status === 'published' ? new Date().toISOString().split('T')[0] : "", // Changed from publishDate to date
+      author: currentUser?.name || "Author",
+      excerpt: newArticle.excerpt || articleService.generateExcerpt(newArticle.content),
+      readTime: articleService.calculateReadTime(newArticle.content),
+      image: newArticle.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&h=400&fit=crop", // Use provided image or default
+      localImages: newArticle.localImages
     };
 
-    setUserArticles([...userArticles, article]);
-    setNewArticle({ title: "", category: "", content: "", status: "draft" });
+    await articleService.saveArticle(article);
+    if (currentUser?.name) {
+      const allArticles = await articleService.getAllArticles();
+      const myArticles = allArticles.filter(a => a.author === currentUser.name);
+      setUserArticles(myArticles);
+    }
+    
+    setNewArticle({ title: "", category: "", subCategory: "", content: "", status: "draft", image: "", localImages: {} });
     setIsAddingArticle(false);
     
     toast({
@@ -166,29 +282,55 @@ const AuthorDashboard = () => {
     });
   };
 
-  const handleEditArticle = (article: UserArticle) => {
+  const handleEditArticle = (article: Article) => {
     setEditingArticle(article);
     setNewArticle({
       title: article.title,
       category: article.category,
+      subCategory: article.subCategory || "",
       content: article.content,
-      status: article.status
+      excerpt: article.excerpt || "",
+      status: article.status,
+      image: article.image || "",
+      localImages: article.localImages || {},
+      isTrending: article.isTrending || false,
+      priority: article.priority || 'medium'
     });
     setIsAddingArticle(true);
   };
 
-  const handleUpdateArticle = () => {
+  const handleUpdateArticle = async () => {
     if (!editingArticle) return;
 
-    const updatedArticles = userArticles.map(article => 
-      article.id === editingArticle.id 
-        ? { ...article, ...newArticle, publishDate: newArticle.status === 'published' ? new Date().toISOString().split('T')[0] : article.publishDate }
-        : article
-    );
+    const updatedArticle: Article = {
+      ...editingArticle,
+      ...newArticle,
+      date: newArticle.status === 'published' ? new Date().toISOString().split('T')[0] : editingArticle.date,
+      excerpt: newArticle.excerpt || articleService.generateExcerpt(newArticle.content),
+      readTime: articleService.calculateReadTime(newArticle.content),
+      localImages: newArticle.localImages
+    };
 
-    setUserArticles(updatedArticles);
+    await articleService.saveArticle(updatedArticle);
+    if (currentUser?.name) {
+      const allArticles = await articleService.getAllArticles();
+      const myArticles = allArticles.filter(a => a.author === currentUser.name);
+      setUserArticles(myArticles);
+    }
+    
     setEditingArticle(null);
-    setNewArticle({ title: "", category: "", content: "", status: "draft" });
+    setNewArticle({ 
+      title: "", 
+      category: "", 
+      subCategory: "", 
+      content: "", 
+      excerpt: "",
+      status: "draft", 
+      image: "", 
+      localImages: {},
+      isTrending: false,
+      priority: 'medium'
+    });
     setIsAddingArticle(false);
     
     toast({
@@ -197,8 +339,14 @@ const AuthorDashboard = () => {
     });
   };
 
-  const handleDeleteArticle = (id: string) => {
-    setUserArticles(userArticles.filter(article => article.id !== id));
+  const handleDeleteArticle = async (id: string | number) => {
+    await articleService.deleteArticle(id);
+    if (currentUser?.name) {
+      const allArticles = await articleService.getAllArticles();
+      const myArticles = allArticles.filter(a => a.author === currentUser.name);
+      setUserArticles(myArticles);
+    }
+    
     toast({
       title: "Success",
       description: "Article deleted successfully"
@@ -206,10 +354,29 @@ const AuthorDashboard = () => {
   };
 
   const insertText = (text: string) => {
-    setNewArticle(prev => ({
-      ...prev,
-      content: prev.content + text
-    }));
+    const textarea = document.getElementById('content') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const content = newArticle.content;
+      
+      const newContent = content.substring(0, start) + text + content.substring(end);
+      
+      setNewArticle(prev => ({
+        ...prev,
+        content: newContent
+      }));
+      
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + text.length, start + text.length);
+      }, 0);
+    } else {
+      setNewArticle(prev => ({
+        ...prev,
+        content: prev.content + text
+      }));
+    }
   };
 
   const insertTextType = (type: 'heading' | 'subheading' | 'body') => {
@@ -237,15 +404,14 @@ const AuthorDashboard = () => {
           break;
       }
       
-      if (selectedText) {
-        const newContent = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
-        setNewArticle(prev => ({ ...prev, content: newContent }));
-      } else {
-        setNewArticle(prev => ({
-          ...prev,
-          content: prev.content + formattedText
-        }));
-      }
+      const newContent = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+      setNewArticle(prev => ({ ...prev, content: newContent }));
+      
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = start + formattedText.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
     }
     
     setEditorState(prev => ({ ...prev, textType: type }));
@@ -303,48 +469,107 @@ const AuthorDashboard = () => {
     }
   };
 
-  const insertImage = () => {
-    if (imageData.file && imageData.altText) {
-      // For uploaded files, create a placeholder that can be replaced with actual URL later
-      const fileName = imageData.file.name;
-      const imageMarkdown = `![${imageData.altText}](uploaded-image-${fileName})`;
-      
-      setNewArticle(prev => ({
-        ...prev,
-        content: prev.content + '\n' + imageMarkdown + '\n'
-      }));
-      
-      toast({
-        title: "Success",
-        description: `Image "${fileName}" inserted successfully. In production, this would upload to your server.`
-      });
-    } else if (imageData.url && !imageData.file && imageData.altText) {
-      // For URL images, use the URL directly
-      const imageMarkdown = `![${imageData.altText}](${imageData.url})`;
-      setNewArticle(prev => ({
-        ...prev,
-        content: prev.content + '\n' + imageMarkdown + '\n'
-      }));
-      
-      toast({
-        title: "Success",
-        description: "Image URL inserted successfully"
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: "Please provide both image (file or URL) and alt text",
-        variant: "destructive"
-      });
-      return;
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    const textarea = e.currentTarget;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const result = e.target?.result as string;
+            // Sanitize filename to avoid markdown parsing issues
+            const cleanFileName = file.name.replace(/\[/g, '').replace(/\]/g, '').replace(/\s+/g, '-');
+            const uniqueId = `local-image-${Date.now()}-${cleanFileName}`;
+            const imageMarkdown = `\n![${cleanFileName}](${uniqueId})\n`;
+            
+            setNewArticle(prev => {
+              // We reconstruct using the captured text to ensure insertion at the correct cursor position
+              // Note: This assumes the content hasn't changed significantly during the file read
+              const newContent = text.substring(0, start) + imageMarkdown + text.substring(end);
+              return { 
+                ...prev, 
+                content: newContent,
+                localImages: {
+                  ...prev.localImages,
+                  [uniqueId]: result
+                }
+              };
+            });
+            
+            toast({
+              title: "Success",
+              description: "Image added successfully.",
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+      }
     }
-    
-    // Reset image data and close dialog
-    setImageData({ url: "", altText: "", file: null });
-    setShowImageDialog(false);
   };
 
-  const getStatusColor = (status: UserArticle['status']) => {
+  const insertImage = () => {
+    if (imageData.url && imageData.altText) {
+      // Use the URL (Data URL for files, or direct URL for links)
+      // Sanitize alt text
+      const cleanAltText = imageData.altText.replace(/\[/g, '').replace(/\]/g, '').replace(/\s+/g, '-');
+      
+      let imageUrl = imageData.url;
+      let newStateUpdate = {};
+
+      // If it's a data URL (uploaded file), store it locally and use a reference
+      if (imageUrl.startsWith('data:')) {
+        const uniqueId = `local-image-${Date.now()}-${cleanAltText}`;
+        newStateUpdate = {
+          localImages: {
+            ...newArticle.localImages,
+            [uniqueId]: imageUrl
+          }
+        };
+        imageUrl = uniqueId;
+      }
+
+      const imageMarkdown = `![${cleanAltText}](${imageUrl})`;
+      
+      setNewArticle(prev => {
+        const content = prev.content;
+        const insertPos = (cursorPosition !== null && cursorPosition >= 0 && cursorPosition <= content.length) 
+                          ? cursorPosition 
+                          : content.length;
+        
+        // Ensure proper spacing around the image
+        const prefix = insertPos > 0 && content[insertPos-1] !== '\n' ? '\n' : '';
+        const suffix = insertPos < content.length && content[insertPos] !== '\n' ? '\n' : '';
+        
+        const newContent = content.substring(0, insertPos) + 
+                           prefix + imageMarkdown + suffix + 
+                           content.substring(insertPos);
+
+        return {
+          ...prev,
+          content: newContent,
+          ...newStateUpdate
+        };
+      });
+      
+      toast({
+        title: "Success",
+        description: "Image inserted successfully."
+      });
+      
+      setShowImageDialog(false);
+      setImageData({ url: "", altText: "", file: null });
+      setCursorPosition(null);
+    }
+  };
+
+  const getStatusColor = (status: Article['status']) => {
     switch (status) {
       case 'published': return 'bg-green-100 text-green-800';
       case 'draft': return 'bg-yellow-100 text-yellow-800';
@@ -369,7 +594,9 @@ const AuthorDashboard = () => {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Author Dashboard</h1>
-              <p className="text-gray-600 dark:text-gray-400">Create and manage your articles</p>
+              <p className="text-gray-600 dark:text-gray-400">
+                Welcome back, <span className="font-medium text-gray-900 dark:text-white">{currentUser?.name || "Author"}</span>
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <Button 
@@ -451,7 +678,7 @@ const AuthorDashboard = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Likes</CardTitle>
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <UserIcon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.totalLikes}</div>
@@ -468,7 +695,11 @@ const AuthorDashboard = () => {
               <CardContent>
                 <div className="space-y-4">
                   {userArticles.slice(0, 3).map((article) => (
-                    <div key={article.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div 
+                      key={article.id} 
+                      className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() => handleEditArticle(article)}
+                    >
                       <div>
                         <h4 className="font-medium">{article.title}</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -488,14 +719,18 @@ const AuthorDashboard = () => {
           <TabsContent value="articles" className="space-y-6">
             <div className="grid gap-6">
               {userArticles.map((article) => (
-                <Card key={article.id}>
+                <Card 
+                  key={article.id}
+                  className="cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => handleEditArticle(article)}
+                >
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle className="text-lg">{article.title}</CardTitle>
                         <CardDescription>
                           {article.category} • 
-                          {article.publishDate && ` Published on ${article.publishDate} • `}
+                          {article.date && ` Published on ${article.date} • `}
                           {article.views.toLocaleString()} views • {article.likes} likes
                         </CardDescription>
                       </div>
@@ -506,23 +741,60 @@ const AuthorDashboard = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleEditArticle(article)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/article/${article.id}`);
+                          }}
                         >
-                          <Edit3 className="w-3 h-3" />
+                          <Eye className="w-3 h-3" />
                         </Button>
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => handleDeleteArticle(article.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditArticle(article);
+                          }}
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Edit3 className="w-3 h-3" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the article.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteArticle(article.id);
+                                }}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-600 dark:text-gray-400 line-clamp-3">
-                      {article.content}
+                      {article.excerpt || article.content}
                     </p>
                   </CardContent>
                 </Card>
@@ -537,21 +809,143 @@ const AuthorDashboard = () => {
                 <CardDescription>Manage your author information</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Name</Label>
-                    <Input id="name" defaultValue="John Doe" />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" defaultValue="author@techtheory.com" disabled />
-                  </div>
-                  <div>
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea id="bio" placeholder="Tell us about yourself..." />
-                  </div>
-                  <Button>Update Profile</Button>
-                </div>
+                {currentUser && (
+                    <form onSubmit={handleUpdateProfile} className="space-y-4 max-w-4xl">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <div className="flex flex-col items-center space-y-4 mb-6">
+                            <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-100 dark:border-gray-700 shadow-sm relative group">
+                              {currentUser.avatar ? (
+                                <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400">
+                                  <UserIcon className="w-12 h-12" />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                <label htmlFor="avatar-upload" className="cursor-pointer text-white text-xs font-medium flex flex-col items-center w-full h-full justify-center">
+                                  <Image className="w-6 h-6 mb-1" />
+                                  <span>Change</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="text-center">
+                              <Input 
+                                id="avatar-upload" 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleProfileImageUpload}
+                              />
+                              <Label htmlFor="avatar-upload" className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                                Upload Profile Picture
+                              </Label>
+                              <p className="text-xs text-gray-500 mt-1">Max size 1MB</p>
+                            </div>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="profile-name">Name</Label>
+                            <Input
+                              id="profile-name"
+                              value={currentUser.name}
+                              onChange={(e) => setCurrentUser({ ...currentUser, name: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="profile-email">Email</Label>
+                            <Input
+                              id="profile-email"
+                              type="email"
+                              value={currentUser.email}
+                              onChange={(e) => setCurrentUser({ ...currentUser, email: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="profile-password">New Password</Label>
+                            <div className="relative">
+                              <Input
+                                id="profile-password"
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Leave blank to keep current password"
+                                value={currentUser.password || ''}
+                                onChange={(e) => setCurrentUser({ ...currentUser, password: e.target.value })}
+                                className="pr-10"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                              >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-500">Only enter a value if you want to change your password.</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="profile-bio">Bio (Max 100 words)</Label>
+                            <Textarea
+                              id="profile-bio"
+                              placeholder="Tell us about yourself..."
+                              className="h-32"
+                              value={currentUser.bio || ''}
+                              onChange={(e) => {
+                                const text = e.target.value;
+                                const wordCount = text.trim().split(/\s+/).filter(w => w).length;
+                                if (text === '' || wordCount <= 100) {
+                                  setCurrentUser({ ...currentUser, bio: text });
+                                }
+                              }}
+                            />
+                            <p className="text-xs text-gray-500 text-right">
+                              {(currentUser.bio || '').trim().split(/\s+/).filter(w => w).length}/100 words
+                            </p>
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Social Links</Label>
+                            <div className="grid gap-3">
+                              <div className="flex items-center space-x-2">
+                                <span className="w-20 text-sm">Instagram</span>
+                                <Input 
+                                  placeholder="https://instagram.com/username" 
+                                  value={currentUser.socialLinks?.instagram || ''} 
+                                  onChange={(e) => handleSocialLinkChange('instagram', e.target.value)} 
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="w-20 text-sm">LinkedIn</span>
+                                <Input 
+                                  placeholder="https://linkedin.com/in/username" 
+                                  value={currentUser.socialLinks?.linkedin || ''} 
+                                  onChange={(e) => handleSocialLinkChange('linkedin', e.target.value)} 
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="w-20 text-sm">X (Twitter)</span>
+                                <Input 
+                                  placeholder="https://x.com/username" 
+                                  value={currentUser.socialLinks?.twitter || ''} 
+                                  onChange={(e) => handleSocialLinkChange('twitter', e.target.value)} 
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="w-20 text-sm">Facebook</span>
+                                <Input 
+                                  placeholder="https://facebook.com/username" 
+                                  value={currentUser.socialLinks?.facebook || ''} 
+                                  onChange={(e) => handleSocialLinkChange('facebook', e.target.value)} 
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <Button type="submit">Save Changes</Button>
+                    </form>
+                 )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -560,7 +954,7 @@ const AuthorDashboard = () => {
 
       {/* Article Editor Dialog */}
       <Dialog open={isAddingArticle} onOpenChange={setIsAddingArticle}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingArticle ? 'Edit Article' : 'Create New Article'}</DialogTitle>
             <DialogDescription>
@@ -582,24 +976,118 @@ const AuthorDashboard = () => {
               </div>
               <div>
                 <Label htmlFor="category">Category *</Label>
-                <Select value={newArticle.category} onValueChange={(value) => setNewArticle(prev => ({ ...prev, category: value }))}>
+                <Select 
+                  value={newArticle.category} 
+                  onValueChange={(value) => {
+                    setNewArticle(prev => ({ ...prev, category: value, subCategory: "" }));
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Technology">Technology</SelectItem>
-                    <SelectItem value="AI">AI</SelectItem>
-                    <SelectItem value="Web Development">Web Development</SelectItem>
-                    <SelectItem value="Mobile">Mobile</SelectItem>
-                    <SelectItem value="Design">Design</SelectItem>
+                    {NAV_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.name} value={cat.name}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {newArticle.category && NAV_CATEGORIES.find(c => c.name === newArticle.category)?.subcategories.length! > 0 && (
+                  <div className="mt-3">
+                    <Label htmlFor="subCategory">Sub Category (Optional)</Label>
+                    <Select 
+                      value={newArticle.subCategory} 
+                      onValueChange={(value) => setNewArticle(prev => ({ ...prev, subCategory: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select sub category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {NAV_CATEGORIES.find(c => c.name === newArticle.category)?.subcategories.map((sub) => (
+                          <SelectItem key={sub} value={sub}>
+                            {sub}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="excerpt">Excerpt (Optional)</Label>
+              <Textarea
+                id="excerpt"
+                value={newArticle.excerpt || ""}
+                onChange={(e) => setNewArticle(prev => ({ ...prev, excerpt: e.target.value }))}
+                placeholder="Write a brief excerpt or summary..."
+                className="mt-2 resize-none"
+                rows={2}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select
+                  value={newArticle.priority || 'medium'}
+                  onValueChange={(value: Article['priority']) => setNewArticle(prev => ({ ...prev, priority: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
+              <div className="flex items-center space-x-2 pt-8">
+                <input
+                  type="checkbox"
+                  id="isTrending"
+                  checked={newArticle.isTrending || false}
+                  onChange={(e) => setNewArticle(prev => ({ ...prev, isTrending: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <Label htmlFor="isTrending" className="cursor-pointer">Mark as Trending</Label>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="cover-image">Cover Image URL</Label>
+              <Input
+                id="cover-image"
+                value={newArticle.image || ""}
+                onChange={(e) => setNewArticle(prev => ({ ...prev, image: e.target.value }))}
+                placeholder="https://example.com/image.jpg"
+                className="mt-1"
+              />
+              {newArticle.image && (
+                <div className="mt-2 relative group">
+                  <img 
+                    src={newArticle.image} 
+                    alt="Cover Preview" 
+                    className="h-32 w-full object-cover rounded-md border"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }} 
+                    onLoad={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'block';
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Rich Text Editor Toolbar */}
             <div className="border rounded-lg p-3">
-              <div className="flex flex-wrap gap-2 mb-4 border-b pb-3">
+              <div className="sticky top-0 z-10 bg-background flex flex-wrap gap-2 mb-4 border-b pb-3 pt-2 -mt-2">
                 {/* Text Formatting */}
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -744,7 +1232,17 @@ const AuthorDashboard = () => {
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShowImageDialog(true)}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        const textarea = document.getElementById('content') as HTMLTextAreaElement;
+                        if (textarea) {
+                          setCursorPosition(textarea.selectionStart);
+                        }
+                        setShowImageDialog(true);
+                      }}
+                    >
                       <Image className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
@@ -773,11 +1271,13 @@ const AuthorDashboard = () => {
                   <div>
                     <Label className="text-sm text-gray-600 dark:text-gray-400">Editor</Label>
                     <Textarea
+                      ref={textareaRef}
                       id="content"
                       value={newArticle.content}
                       onChange={(e) => setNewArticle(prev => ({ ...prev, content: e.target.value }))}
+                      onPaste={handlePaste}
                       placeholder="Start writing your article here. Use the toolbar above to format your text..."
-                      className="min-h-[400px] font-mono rich-text-editor"
+                      className="h-[600px] w-full p-4 font-mono text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-y-auto"
                       style={{
                         color: editorState.textColor,
                         fontWeight: editorState.isBold ? 'bold' : 'normal',
@@ -790,66 +1290,119 @@ const AuthorDashboard = () => {
                   {/* Preview */}
                   <div>
                     <Label className="text-sm text-gray-600 dark:text-gray-400">Preview</Label>
-                    <div className="min-h-[400px] p-4 border rounded-md bg-gray-50 dark:bg-gray-800 overflow-y-auto">
+                    <div className="h-[600px] p-4 border rounded-md bg-gray-50 dark:bg-gray-800 overflow-y-auto">
                       <div className="prose prose-sm max-w-none dark:prose-invert">
-                        {newArticle.content.split('\n').map((line, index) => {
-                          if (line.startsWith('# ')) {
-                            return (
-                              <h1 key={index} className="text-2xl font-bold mb-4 mt-6 text-gray-900 dark:text-white">
-                                {line.replace('# ', '')}
-                              </h1>
-                            );
-                          } else if (line.startsWith('## ')) {
-                            return (
-                              <h2 key={index} className="text-xl font-semibold mb-3 mt-5 text-gray-800 dark:text-gray-100">
-                                {line.replace('## ', '')}
-                              </h2>
-                            );
-                          } else if (line.startsWith('### ')) {
-                            return (
-                              <h3 key={index} className="text-lg font-medium mb-2 mt-4 text-gray-700 dark:text-gray-200">
-                                {line.replace('### ', '')}
-                              </h3>
-                            );
-                          } else if (line.startsWith('• ')) {
-                            return (
-                              <li key={index} className="ml-4 text-gray-700 dark:text-gray-300">
-                                {line.replace('• ', '')}
-                              </li>
-                            );
-                          } else if (line.includes('![') && line.includes('](')) {
-                            const imageMatch = line.match(/!\[(.*?)\]\((.*?)\)/);
-                            if (imageMatch) {
-                              const [, altText, imageUrl] = imageMatch;
+                        {(() => {
+                          const lines = newArticle.content.split('\n');
+                          const elements = [];
+                          
+                          for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i];
+                            const key = i;
+
+                            // Table Detection
+                            if (line.trim().startsWith('|') && 
+                                i + 1 < lines.length && 
+                                lines[i+1].trim().startsWith('|') && 
+                                (lines[i+1].includes('---') || lines[i+1].includes('-'))) {
                               
-                              // Check if this is an uploaded file placeholder
-                              if (imageUrl.startsWith('uploaded-image-')) {
-                                // For uploaded files, show a placeholder in preview
-                                const fileName = imageUrl.replace('uploaded-image-', '');
-                                return (
-                                  <div key={index} className="my-4 p-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center">
-                                    <div className="flex flex-col items-center space-y-2">
-                                      <Image className="w-8 h-8 text-blue-500" />
-                                      <p className="text-blue-700 dark:text-blue-300 font-medium">
-                                        Uploaded Image: {fileName}
-                                      </p>
-                                      <p className="text-sm text-blue-600 dark:text-blue-400">
-                                        Alt text: {altText}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        This image would be uploaded to your server in production
-                                      </p>
-                                    </div>
-                                  </div>
-                                );
-                              } else {
-                                // For URL images, show the actual image
-                                return (
-                                  <div key={index} className="my-4">
+                              const tableLines = [];
+                              let j = i;
+                              // Collect all consecutive lines that look like table rows (start with |)
+                              while (j < lines.length && lines[j].trim().startsWith('|')) {
+                                tableLines.push(lines[j]);
+                                j++;
+                              }
+                              
+                              // Parse table
+                              // Filter out empty strings that result from split if there are leading/trailing pipes
+                              const headers = tableLines[0].split('|').filter(c => c.trim() !== '').map(c => c.trim());
+                              // Skip the separator row (index 1)
+                              const rows = tableLines.slice(2).map(rowLine => 
+                                rowLine.split('|').filter(c => c.trim() !== '').map(c => c.trim())
+                              );
+
+                              const parseCell = (text: string) => {
+                                let content = text;
+                                content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                                content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                                content = content.replace(/`(.*?)`/g, '<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">$1</code>');
+                                content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>');
+                                return <span dangerouslySetInnerHTML={{ __html: content }} />;
+                              };
+                              
+                              elements.push(
+                                <div key={`table-${key}`} className="overflow-x-auto my-4">
+                                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border">
+                                    <thead className="bg-gray-50 dark:bg-gray-800">
+                                      <tr>
+                                        {headers.map((header, hIdx) => (
+                                          <th key={hIdx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r last:border-r-0">
+                                            {parseCell(header)}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                      {rows.map((row, rIdx) => (
+                                        <tr key={rIdx}>
+                                          {row.map((cell, cIdx) => (
+                                            <td key={cIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-r last:border-r-0">
+                                              {parseCell(cell)}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              );
+                              
+                              i = j - 1; // Move index to the end of the table
+                              continue;
+                            }
+
+                            if (line.startsWith('# ')) {
+                              elements.push(
+                                <h1 key={key} className="text-2xl font-bold mb-4 mt-6 text-gray-900 dark:text-white">
+                                  {line.replace('# ', '')}
+                                </h1>
+                              );
+                            } else if (line.startsWith('## ')) {
+                              elements.push(
+                                <h2 key={key} className="text-xl font-semibold mb-3 mt-5 text-gray-800 dark:text-gray-100">
+                                  {line.replace('## ', '')}
+                                </h2>
+                              );
+                            } else if (line.startsWith('### ')) {
+                              elements.push(
+                                <h3 key={key} className="text-lg font-medium mb-2 mt-4 text-gray-700 dark:text-gray-200">
+                                  {line.replace('### ', '')}
+                                </h3>
+                              );
+                            } else if (line.startsWith('• ') || line.startsWith('- ')) {
+                              elements.push(
+                                <li key={key} className="ml-4 text-gray-700 dark:text-gray-300">
+                                  {line.replace(/^(\•|-)\s/, '')}
+                                </li>
+                              );
+                            } else if (line.includes('![') && line.includes('](')) {
+                              const imageMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+                              if (imageMatch) {
+                                const [, altText, imageUrl] = imageMatch;
+                                
+                                // Resolve local image reference
+                                let displayUrl = imageUrl;
+                                if (imageUrl.startsWith('local-image-') && newArticle.localImages?.[imageUrl]) {
+                                  displayUrl = newArticle.localImages[imageUrl];
+                                }
+                                
+                                elements.push(
+                                  <div key={key} className="my-8">
                                     <img 
-                                      src={imageUrl} 
+                                      src={displayUrl} 
                                       alt={altText} 
-                                      className="max-w-full h-auto rounded-lg border"
+                                      className="w-full h-auto max-h-[600px] object-contain rounded-lg border shadow-md bg-black/5 dark:bg-white/5"
                                       onError={(e) => {
                                         const target = e.target as HTMLImageElement;
                                         target.style.display = 'none';
@@ -863,35 +1416,36 @@ const AuthorDashboard = () => {
                                   </div>
                                 );
                               }
+                            } else if (line.includes('**') && line.includes('**')) {
+                              const boldText = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                              elements.push(
+                                <p key={key} className="mb-2 text-gray-700 dark:text-gray-300" 
+                                   dangerouslySetInnerHTML={{ __html: boldText }} />
+                              );
+                            } else if (line.includes('*') && line.includes('*')) {
+                              const italicText = line.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                              elements.push(
+                                <p key={key} className="mb-2 text-gray-700 dark:text-gray-300" 
+                                   dangerouslySetInnerHTML={{ __html: italicText }} />
+                              );
+                            } else if (line.includes('[') && line.includes('](')) {
+                              const linkText = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>');
+                              elements.push(
+                                <p key={key} className="mb-2 text-gray-700 dark:text-gray-300" 
+                                   dangerouslySetInnerHTML={{ __html: linkText }} />
+                              );
+                            } else if (line.trim() === '') {
+                              elements.push(<br key={key} />);
+                            } else {
+                              elements.push(
+                                <p key={key} className="mb-2 text-gray-700 dark:text-gray-300">
+                                  {line}
+                                </p>
+                              );
                             }
-                          } else if (line.includes('**') && line.includes('**')) {
-                            const boldText = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                            return (
-                              <p key={index} className="mb-2 text-gray-700 dark:text-gray-300" 
-                                 dangerouslySetInnerHTML={{ __html: boldText }} />
-                            );
-                          } else if (line.includes('*') && line.includes('*')) {
-                            const italicText = line.replace(/\*(.*?)\*/g, '<em>$1</em>');
-                            return (
-                              <p key={index} className="mb-2 text-gray-700 dark:text-gray-300" 
-                                 dangerouslySetInnerHTML={{ __html: italicText }} />
-                            );
-                          } else if (line.includes('[') && line.includes('](')) {
-                            const linkText = line.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>');
-                            return (
-                              <p key={index} className="mb-2 text-gray-700 dark:text-gray-300" 
-                                 dangerouslySetInnerHTML={{ __html: linkText }} />
-                            );
-                          } else if (line.trim() === '') {
-                            return <br key={index} />;
-                          } else {
-                            return (
-                              <p key={index} className="mb-2 text-gray-700 dark:text-gray-300">
-                                {line}
-                              </p>
-                            );
                           }
-                        })}
+                          return elements;
+                        })()}
                         {newArticle.content === '' && (
                           <p className="text-gray-500 italic">Start writing to see preview...</p>
                         )}
@@ -905,7 +1459,7 @@ const AuthorDashboard = () => {
             {/* Status Selection */}
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select value={newArticle.status} onValueChange={(value: UserArticle['status']) => setNewArticle(prev => ({ ...prev, status: value }))}>
+              <Select value={newArticle.status} onValueChange={(value: Article['status']) => setNewArticle(prev => ({ ...prev, status: value }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -924,7 +1478,7 @@ const AuthorDashboard = () => {
                 onClick={() => {
                   setIsAddingArticle(false);
                   setEditingArticle(null);
-                  setNewArticle({ title: "", category: "", content: "", status: "draft" });
+                  setNewArticle({ title: "", category: "", content: "", status: "draft", image: "", localImages: {} });
                 }}
               >
                 Cancel
@@ -944,94 +1498,59 @@ const AuthorDashboard = () => {
           <DialogHeader>
             <DialogTitle>Insert Image</DialogTitle>
             <DialogDescription>
-              Upload an image file or provide an image URL
+              Provide an image URL
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            <Tabs defaultValue="upload" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="upload">Upload File</TabsTrigger>
-                <TabsTrigger value="url">Image URL</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="upload" className="space-y-4">
-                <div>
-                  <Label htmlFor="image-upload">Choose Image</Label>
-                  <Input
-                    id="image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="mt-1"
-                  />
-                </div>
-                
-                {imageData.url && (
-                  <div className="mt-4">
-                    <Label>Preview</Label>
-                    <div className="mt-2 p-2 border rounded-lg">
-                      <img 
-                        src={imageData.url} 
-                        alt="Preview" 
-                        className="max-w-full h-32 object-cover rounded"
-                      />
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="url" className="space-y-4">
-                <div>
-                  <Label htmlFor="image-url">Image URL</Label>
-                  <Input
-                    id="image-url"
-                    type="url"
-                    value={!imageData.file ? imageData.url : ""}
-                    onChange={(e) => {
-                      setImageData(prev => ({ 
-                        ...prev, 
-                        url: e.target.value,
-                        file: null // Clear file when entering URL
-                      }));
+            <div>
+              <Label htmlFor="image-url">Image URL</Label>
+              <Input
+                id="image-url"
+                type="url"
+                value={imageData.url}
+                onChange={(e) => {
+                  setImageData(prev => ({ 
+                    ...prev, 
+                    url: e.target.value,
+                    file: null
+                  }));
+                }}
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+            
+            {imageData.url && (
+              <div className="mt-4">
+                <Label>Preview</Label>
+                <div className="mt-2 p-2 border rounded-lg">
+                  <img 
+                    src={imageData.url} 
+                    alt="Preview" 
+                    className="max-w-full h-32 object-contain bg-muted rounded"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const errorDiv = target.nextElementSibling as HTMLElement;
+                      if (!errorDiv || !errorDiv.classList.contains('error-message')) {
+                        const newErrorDiv = document.createElement('div');
+                        newErrorDiv.className = 'error-message text-red-500 text-sm mt-2';
+                        newErrorDiv.textContent = 'Failed to load image. Please check the URL.';
+                        target.parentNode?.appendChild(newErrorDiv);
+                      }
                     }}
-                    placeholder="https://example.com/image.jpg"
+                    onLoad={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'block';
+                      const errorDiv = target.parentNode?.querySelector('.error-message');
+                      if (errorDiv) {
+                        errorDiv.remove();
+                      }
+                    }}
                   />
                 </div>
-                
-                {imageData.url && !imageData.file && (
-                  <div className="mt-4">
-                    <Label>Preview</Label>
-                    <div className="mt-2 p-2 border rounded-lg">
-                      <img 
-                        src={imageData.url} 
-                        alt="Preview" 
-                        className="max-w-full h-32 object-cover rounded"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const errorDiv = target.nextElementSibling as HTMLElement;
-                          if (!errorDiv || !errorDiv.classList.contains('error-message')) {
-                            const newErrorDiv = document.createElement('div');
-                            newErrorDiv.className = 'error-message text-red-500 text-sm mt-2';
-                            newErrorDiv.textContent = 'Failed to load image. Please check the URL.';
-                            target.parentNode?.appendChild(newErrorDiv);
-                          }
-                        }}
-                        onLoad={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'block';
-                          const errorDiv = target.parentNode?.querySelector('.error-message');
-                          if (errorDiv) {
-                            errorDiv.remove();
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+              </div>
+            )}
             
             <div>
               <Label htmlFor="alt-text">Alt Text (Required)</Label>

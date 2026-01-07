@@ -1,28 +1,21 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { ArrowLeft, Clock, Eye, Heart, Share2, MessageCircle, ThumbsUp } from "lucide-react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { ArrowLeft, Clock, Eye, Heart, Share2, MessageCircle, ThumbsUp, Instagram, Linkedin, Facebook, Globe, Send, Edit, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
-interface Article {
-  id: number;
-  title: string;
-  category: string;
-  excerpt: string;
-  content: string;
-  image: string;
-  author: string;
-  date: string;
-  readTime: string;
-  views: number;
-  likes: number;
-  tags: string[];
-}
+import { articleService, Article, Comment } from "@/services/articleService";
+import { userService, User } from "@/services/userService";
+import AdUnit from "@/components/AdUnit";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthDialog } from "@/components/AuthDialog";
 
 interface RelatedArticle {
-  id: number;
+  id: string | number;
   title: string;
   image: string;
   date: string;
@@ -33,113 +26,157 @@ const ArticleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [article, setArticle] = useState<Article | null>(null);
+  const [authorData, setAuthorData] = useState<User | null>(null);
   const [relatedArticles, setRelatedArticles] = useState<RelatedArticle[]>([]);
   const [isLiked, setIsLiked] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [hasAd, setHasAd] = useState(false); // Control ad visibility
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [authDialogMessage, setAuthDialogMessage] = useState({ title: "", description: "" });
+  const commentsRef = useRef<HTMLDivElement>(null);
+  const [newComment, setNewComment] = useState("");
 
-  // Mock article data - replace with API call
+  const handleCommentSubmit = async () => {
+    if (!newComment.trim()) return;
+    if (!article) return;
+
+    if (!user) {
+      setAuthDialogMessage({
+        title: "Sign in to comment",
+        description: "Join the discussion by signing in to your account."
+      });
+      setShowAuthDialog(true);
+      return;
+    }
+
+    const comment: Comment = {
+      id: Date.now().toString(),
+      author: user.name || "Anonymous",
+      content: newComment,
+      date: new Date().toLocaleDateString(),
+      avatar: user.avatar
+    };
+
+    const updatedArticle = await articleService.addComment(article.id, comment);
+    if (updatedArticle) {
+      setArticle(updatedArticle);
+      setNewComment("");
+      toast({
+        title: "Success",
+        description: "Comment posted successfully.",
+      });
+    }
+  };
+
+  const handleCommentClick = () => {
+    if (!user) {
+      setAuthDialogMessage({
+        title: "Sign in to comment",
+        description: "Join the discussion by signing in to your account."
+      });
+      setShowAuthDialog(true);
+      return;
+    }
+    commentsRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleLike = async () => {
+    if (!article) return;
+    
+    const newIsLiked = !isLiked;
+    setIsLiked(newIsLiked);
+    
+    // Update article stats
+    const change = newIsLiked ? 1 : -1;
+    const updated = await articleService.updateLikes(article.id, change);
+    if (updated) {
+      setArticle(updated);
+    }
+
+    // Persist user like state locally
+    const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
+    if (newIsLiked) {
+      if (!likedArticles.includes(String(article.id))) {
+        localStorage.setItem('liked_articles', JSON.stringify([...likedArticles, String(article.id)]));
+      }
+    } else {
+      localStorage.setItem('liked_articles', JSON.stringify(likedArticles.filter((id: string) => id !== String(article.id))));
+    }
+  };
 
   useEffect(() => {
-    // Mock article data - replace with API call
-    const mockArticle: Article = {
-      id: parseInt(id || "1"),
-      title: "AI Revolution in Smartphone Photography: How Machine Learning is Transforming Mobile Cameras",
-      category: "AI • TECH",
-      excerpt: "Discover how advanced AI algorithms are revolutionizing smartphone photography, making professional-quality shots accessible to everyone through computational photography techniques.",
-      content: `
-        <p>The landscape of mobile photography has undergone a dramatic transformation in recent years, largely driven by advances in artificial intelligence and machine learning. What once required expensive DSLR cameras and years of technical expertise can now be achieved with the smartphone in your pocket.</p>
-        
-        <h2>The AI Photography Revolution</h2>
-        <p>Modern smartphones use sophisticated AI algorithms to analyze scenes in real-time, automatically adjusting camera settings for optimal results. These systems can identify subjects, lighting conditions, and even predict the photographer's intent.</p>
-        
-        <h3>Computational Photography Techniques</h3>
-        <p>Computational photography combines multiple exposures, advanced image processing, and machine learning to create images that surpass what traditional cameras can capture in a single shot.</p>
-        
-        <ul>
-          <li><strong>HDR Processing:</strong> Combines multiple exposures for balanced lighting</li>
-          <li><strong>Night Mode:</strong> AI-enhanced low-light photography</li>
-          <li><strong>Portrait Mode:</strong> Machine learning-based background blur</li>
-          <li><strong>Scene Recognition:</strong> Automatic optimization for different environments</li>
-        </ul>
-        
-        <h2>The Future of Mobile Photography</h2>
-        <p>As AI continues to evolve, we can expect even more sophisticated features that will further democratize professional-quality photography. From real-time video enhancement to advanced creative filters, the possibilities are limitless.</p>
-        
-        <p>The integration of AI in smartphone cameras represents just the beginning of a broader transformation in how we capture and share our visual stories.</p>
-      `,
-      image: "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=1200&h=600&fit=crop",
-      author: "Sarah Chen",
-      date: "2 hours ago",
-      readTime: "5 min read",
-      views: 1247,
-      likes: 89,
-      tags: ["AI", "Photography", "Technology", "Machine Learning", "Smartphones"]
-    };
-    
-    setArticle(mockArticle);
-
-    // Mock related articles data
-    const mockRelatedArticles: RelatedArticle[] = [
-      {
-        id: 2,
-        title: "The Future of 5G Technology in Smart Cities",
-        image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=200&fit=crop",
-        date: "August 31, 2025",
-        category: "Technology"
-      },
-      {
-        id: 3,
-        title: "Blockchain Applications Beyond Cryptocurrency",
-        image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=300&h=200&fit=crop",
-        date: "August 30, 2025",
-        category: "Blockchain"
-      },
-      {
-        id: 4,
-        title: "Quantum Computing: Breaking Traditional Barriers",
-        image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=300&h=200&fit=crop",
-        date: "August 29, 2025",
-        category: "Quantum"
-      },
-      {
-        id: 5,
-        title: "Sustainable Tech: Green Innovation in 2025",
-        image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=200&fit=crop",
-        date: "August 28, 2025",
-        category: "Green Tech"
-      },
-      {
-        id: 6,
-        title: "Virtual Reality in Education and Training",
-        image: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=300&h=200&fit=crop",
-        date: "August 27, 2025",
-        category: "VR/AR"
-      },
-      {
-        id: 7,
-        title: "Machine Learning Algorithms in Healthcare",
-        image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=200&fit=crop",
-        date: "August 26, 2025",
-        category: "AI & Health"
-      },
-      {
-        id: 8,
-        title: "Cybersecurity Trends for Modern Enterprises",
-        image: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=300&h=200&fit=crop",
-        date: "August 25, 2025",
-        category: "Security"
-      },
-      {
-        id: 9,
-        title: "Edge Computing: Processing Data at the Source",
-        image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=300&h=200&fit=crop",
-        date: "August 24, 2025",
-        category: "Cloud"
+    const fetchArticleData = async () => {
+      if (!id) return;
+      
+      // Check if user already liked this article
+      const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
+      if (likedArticles.includes(String(id))) {
+        setIsLiked(true);
       }
-    ];
-    
-    setRelatedArticles(mockRelatedArticles);
+
+      // Increment views if not already viewed in this session
+      const sessionKey = `viewed-article-${id}`;
+      let foundArticle = await articleService.getArticleById(id);
+      
+      if (foundArticle && !sessionStorage.getItem(sessionKey)) {
+        const updated = await articleService.incrementViews(id);
+        if (updated) {
+          foundArticle = updated;
+          sessionStorage.setItem(sessionKey, 'true');
+        }
+      }
+
+      if (foundArticle) {
+        setArticle(foundArticle);
+        
+        // Fetch author data
+        const users = userService.getAllUsers();
+        const author = users.find(u => u.name === foundArticle!.author);
+        setAuthorData(author || null);
+        
+        // Get related articles (exclude current one)
+        const allArticles = await articleService.getPublishedArticles();
+      const otherArticles = allArticles.filter(a => String(a.id) !== String(id));
+      
+      // Filter by tags first, then category
+      let related = otherArticles.filter(a => 
+        a.tags?.some(tag => foundArticle.tags?.includes(tag))
+      );
+
+      // If not enough tag matches, add category matches
+      if (related.length < 5) {
+        const categoryMatches = otherArticles.filter(a => 
+          a.category === foundArticle.category && !related.find(r => r.id === a.id)
+        );
+        related = [...related, ...categoryMatches];
+      }
+
+      // If still not enough, add random articles to fill up
+      if (related.length < 10) {
+        const remaining = otherArticles.filter(a => !related.find(r => r.id === a.id));
+        const shuffled = [...remaining].sort(() => 0.5 - Math.random());
+        related = [...related, ...shuffled.slice(0, 10 - related.length)];
+      }
+
+      // Map to RelatedArticle format
+      const selected = related.map(a => ({
+        id: a.id,
+        title: a.title,
+        image: a.image || "",
+        date: a.date,
+        category: a.category
+      }));
+      
+      setRelatedArticles(selected);
+    } else {
+      // Article not found handling
+      console.log("Article not found with ID:", id);
+      setArticle(null); // Ensure it's null
+    }
+  };
+  fetchArticleData();
   }, [id]);
 
   useEffect(() => {
@@ -175,7 +212,23 @@ const ArticleDetail = () => {
     }
   };
 
-  if (!article) return <div>Loading...</div>;
+  if (!article) {
+    // If we've tried to load and it's still null, and we have an ID, it means not found
+    if (id) {
+       return (
+         <div className="min-h-screen flex flex-col items-center justify-center">
+           <Navbar />
+           <div className="text-center pt-20">
+             <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
+             <p className="mb-4">We couldn't find the article you're looking for.</p>
+             <Button onClick={() => navigate('/')}>Go Home</Button>
+           </div>
+           <Footer />
+         </div>
+       );
+    }
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen">
@@ -189,19 +242,7 @@ const ArticleDetail = () => {
         />
       </div>
 
-      <main className="pt-20">
-        {/* Back Button */}
-        <div className="container mx-auto px-4 mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="flex items-center space-x-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </Button>
-        </div>
-
+      <main className="pt-6">
         {/* Article Header */}
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -209,8 +250,18 @@ const ArticleDetail = () => {
             <div className="lg:col-span-2">
               <article>
                 <header className="mb-8">
-                  <div className="mb-4">
-                    <span className="text-sm uppercase tracking-wide text-primary font-medium">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(-1)}
+                      className="flex items-center space-x-1 px-0 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span className="text-base font-medium">Back</span>
+                    </Button>
+                    <span className="text-muted-foreground text-base">/</span>
+                    <span className="text-base font-bold uppercase tracking-tight text-blue-500">
                       {article.category}
                     </span>
                   </div>
@@ -226,7 +277,7 @@ const ArticleDetail = () => {
                   {/* Article Meta */}
                   <div className="flex flex-wrap items-center justify-between border-y border-border py-4 mb-8">
                     <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                      <span>by <strong>{article.author}</strong></span>
+                      <span>by <Link to={`/author/${encodeURIComponent(article.author)}`} className="font-bold text-primary hover:underline">{article.author}</Link></span>
                       <span>{article.date}</span>
                       <div className="flex items-center space-x-1">
                         <Clock className="w-4 h-4" />
@@ -276,45 +327,164 @@ const ArticleDetail = () => {
                   <img
                     src={article.image}
                     alt={article.title}
-                    className="w-full h-64 md:h-96 object-cover rounded-lg"
+                    className="w-full h-auto max-h-[700px] object-contain rounded-lg bg-black/5 dark:bg-white/5"
                   />
                 </div>
 
                 {/* Article Content */}
                 <div 
                   id="article-content"
-                  className="prose prose-lg max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-ul:text-foreground"
-                  dangerouslySetInnerHTML={{ __html: article.content }}
-                />
+                  className="prose prose-lg max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-blockquote:text-foreground prose-code:text-foreground"
+                >
+                  {(() => {
+                    try {
+                      if (!article.content) return null;
+                      
+                      const lines = article.content.split('\n');
+                      const elements = [];
+                      
+                      for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+                        const key = i;
+
+                        // Table Detection
+                        if (line.trim().startsWith('|') && 
+                            i + 1 < lines.length && 
+                            lines[i+1].trim().startsWith('|') && 
+                            (lines[i+1].includes('---') || lines[i+1].includes('-'))) {
+                          
+                          const tableLines = [];
+                          let j = i;
+                          while (j < lines.length && lines[j].trim().startsWith('|')) {
+                            tableLines.push(lines[j]);
+                            j++;
+                          }
+                          
+                          const headers = tableLines[0].split('|').filter(c => c.trim() !== '').map(c => c.trim());
+                          const rows = tableLines.slice(2).map(rowLine => 
+                            rowLine.split('|').filter(c => c.trim() !== '').map(c => c.trim())
+                          );
+                          
+                          const parseCell = (text: string) => {
+                            let content = text;
+                            content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                            content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                            content = content.replace(/`(.*?)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
+                            content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline">$1</a>');
+                            return <span dangerouslySetInnerHTML={{ __html: content }} />;
+                          };
+
+                          elements.push(
+                            <div key={`table-${key}`} className="overflow-x-auto my-4">
+                              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border">
+                                <thead className="bg-gray-50 dark:bg-gray-800">
+                                  <tr>
+                                    {headers.map((header, hIdx) => (
+                                      <th key={hIdx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-r last:border-r-0">
+                                        {parseCell(header)}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                                  {rows.map((row, rIdx) => (
+                                    <tr key={rIdx}>
+                                      {row.map((cell, cIdx) => (
+                                        <td key={cIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-r last:border-r-0">
+                                          {parseCell(cell)}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                          
+                          i = j - 1;
+                          continue;
+                        }
+
+                        if (line.startsWith('# ')) {
+                          elements.push(<h1 key={key} className="text-3xl font-bold mt-8 mb-4">{line.replace('# ', '')}</h1>);
+                        } else if (line.startsWith('## ')) {
+                          elements.push(<h2 key={key} className="text-2xl font-bold mt-6 mb-3">{line.replace('## ', '')}</h2>);
+                        } else if (line.startsWith('### ')) {
+                          elements.push(<h3 key={key} className="text-xl font-bold mt-4 mb-2">{line.replace('### ', '')}</h3>);
+                        } else if (line.startsWith('• ') || line.startsWith('- ')) {
+                          elements.push(<li key={key} className="ml-4">{line.replace(/^(\•|-)\s/, '')}</li>);
+                        } else if (line.startsWith('> ')) {
+                          elements.push(<blockquote key={key} className="border-l-4 border-primary pl-4 italic">{line.replace('> ', '')}</blockquote>);
+                        } else if (line.includes('![') && line.includes('](')) {
+                          const imageMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+                          if (imageMatch) {
+                            const [, altText, imageUrl] = imageMatch;
+                            let displayUrl = imageUrl;
+                            if (imageUrl.startsWith('local-image-') && article.localImages && article.localImages[imageUrl]) {
+                              displayUrl = article.localImages[imageUrl];
+                            }
+                            elements.push(
+                              <img key={key} src={displayUrl} alt={altText} className="w-full h-auto max-h-[600px] object-contain rounded-lg my-8 shadow-md bg-black/5 dark:bg-white/5" />
+                            );
+                          }
+                        } else {
+                           // Fallback for paragraph with inline formatting
+                           let content = line;
+                           content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                           content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                           content = content.replace(/`(.*?)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
+                           content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline">$1</a>');
+                           
+                           if (line.trim() === '') {
+                             elements.push(<br key={key} />);
+                           } else {
+                             elements.push(<p key={key} dangerouslySetInnerHTML={{ __html: content }} />);
+                           }
+                        }
+                      }
+                      return elements;
+                    } catch (error) {
+                      console.error("Error rendering article content:", error);
+                      return (
+                        <div className="p-4 border border-red-200 bg-red-50 text-red-800 rounded-md">
+                          <p className="font-bold">Error rendering content</p>
+                          <p className="text-sm">There was an issue displaying this article. Please try editing it to fix any formatting issues.</p>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
 
                 {/* Tags */}
-                <div className="mt-8 pt-8 border-t border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-3">Tags</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {article.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                {article.tags && article.tags.length > 0 && (
+                  <div className="mt-8 pt-8 border-t border-border">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Tags</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {article.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Article Actions */}
                 <div className="mt-8 pt-8 border-t border-border flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <Button
                       variant="outline"
-                      onClick={() => setIsLiked(!isLiked)}
+                      onClick={handleLike}
                       className={isLiked ? "border-red-500 text-red-500" : ""}
                     >
                       <ThumbsUp className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
-                      Like ({article.likes + (isLiked ? 1 : 0)})
+                      Like ({article.likes})
                     </Button>
                     
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={handleCommentClick}>
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Comment
                     </Button>
@@ -325,12 +495,128 @@ const ArticleDetail = () => {
                     Share Article
                   </Button>
                 </div>
+
+                {/* Author Bio Section */}
+                {authorData && (authorData.bio || authorData.socialLinks) && (
+                  <div className="mt-8 pt-8 border-t border-border">
+                    <div className="flex flex-col md:flex-row gap-6 items-start bg-secondary/30 p-6 rounded-lg">
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-2xl font-bold text-primary">
+                          {authorData.avatar ? (
+                            <img src={authorData.avatar} alt={authorData.name} className="w-full h-full object-cover" />
+                          ) : (
+                            authorData.name.charAt(0).toUpperCase()
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold mb-2 text-foreground">About {authorData.name}</h3>
+                        {authorData.bio && (
+                          <p className="text-muted-foreground mb-4 leading-relaxed text-sm">
+                            {authorData.bio}
+                          </p>
+                        )}
+                        
+                        {authorData.socialLinks && (
+                          <div className="flex items-center space-x-4">
+                            {authorData.socialLinks.instagram && (
+                              <a href={authorData.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-pink-600 transition-colors">
+                                <Instagram className="w-5 h-5" />
+                              </a>
+                            )}
+                            {authorData.socialLinks.linkedin && (
+                              <a href={authorData.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-blue-700 transition-colors">
+                                <Linkedin className="w-5 h-5" />
+                              </a>
+                            )}
+                            {authorData.socialLinks.twitter && (
+                              <a href={authorData.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
+                                <Twitter className="w-5 h-5" />
+                              </a>
+                            )}
+                            {authorData.socialLinks.facebook && (
+                              <a href={authorData.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-blue-600 transition-colors">
+                                <Facebook className="w-5 h-5" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Comments Section */}
+                <div className="mt-8 pt-8 border-t border-border" ref={commentsRef}>
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5" />
+                    Comments ({article.comments?.length || 0})
+                  </h3>
+
+                  {/* Comment Form */}
+                  <div className="mb-8 bg-secondary/30 p-6 rounded-lg">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-4">
+                        {user && (
+                          <Avatar>
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div className="flex-1">
+                          <Textarea 
+                            placeholder="Share your thoughts..." 
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            className="min-h-[100px] mb-2"
+                          />
+                          <div className="flex justify-end">
+                            <Button onClick={handleCommentSubmit} disabled={!newComment.trim()}>
+                              <Send className="w-4 h-4 mr-2" />
+                              Post Comment
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comment List */}
+                  <div className="space-y-6">
+                    {article.comments && article.comments.length > 0 ? (
+                      article.comments.map((comment) => (
+                        <div key={comment.id} className="flex gap-4">
+                          <Avatar>
+                            <AvatarImage src={comment.avatar} />
+                            <AvatarFallback>{comment.author.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="bg-background border border-border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="font-semibold text-sm">{comment.author}</span>
+                                <span className="text-xs text-muted-foreground">{comment.date}</span>
+                              </div>
+                              <p className="text-sm text-foreground">{comment.content}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-muted-foreground py-8 italic">
+                        No comments yet. Be the first to share your thoughts!
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bottom Ad Unit */}
+                <AdUnit slot="1234567890" className="mt-8" />
               </article>
             </div>
 
             {/* Sidebar - Related Articles */}
             <div className="lg:col-span-1">
-              <div className="space-y-6">
+              <div className="sticky top-24 space-y-6">
                 <div className="bg-background border border-border rounded-lg p-6">
                   <div className="mb-6">
                     <h2 className="inline-block text-lg font-bold text-background bg-foreground px-3 py-2 text-sm uppercase tracking-wide rounded">
@@ -338,29 +624,27 @@ const ArticleDetail = () => {
                     </h2>
                   </div>
                   
-                  <div className="space-y-6">
+                  <div className="divide-y divide-border">
                     {relatedArticles.map((relatedArticle) => (
                       <article 
                         key={relatedArticle.id}
-                        className="group cursor-pointer"
+                        className="py-4 group cursor-pointer first:pt-0 last:pb-0"
                         onClick={() => navigate(`/article/${relatedArticle.id}`)}
                       >
-                        <div className="flex space-x-4">
+                        <div className="flex gap-4">
                           <div className="flex-shrink-0">
                             <img
                               src={relatedArticle.image}
                               alt={relatedArticle.title}
-                              className="w-20 h-20 object-cover rounded-lg group-hover:opacity-80 transition-opacity"
+                              className="w-28 h-20 object-contain bg-muted rounded-md group-hover:opacity-80 transition-opacity"
                             />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-3 leading-tight">
+                          <div className="flex-1 min-w-0 flex flex-col justify-center">
+                            <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mb-1">
                               {relatedArticle.title}
                             </h3>
-                            <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                              <span className="text-primary font-medium">{relatedArticle.category}</span>
-                              <span className="mx-2">•</span>
-                              <span>{relatedArticle.date}</span>
+                            <div className="text-xs text-muted-foreground">
+                              <span>Published: {relatedArticle.date}</span>
                             </div>
                           </div>
                         </div>
@@ -399,6 +683,13 @@ const ArticleDetail = () => {
       <div className="py-16"></div>
       
       <Footer />
+      
+      <AuthDialog 
+        isOpen={showAuthDialog} 
+        onOpenChange={setShowAuthDialog}
+        title={authDialogMessage.title || "Sign in required"}
+        description={authDialogMessage.description || "You need to be signed in to perform this action."}
+      />
     </div>
   );
 };

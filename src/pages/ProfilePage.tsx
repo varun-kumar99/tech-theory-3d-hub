@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Settings, BookmarkIcon, History, Bell, Shield, Eye, Heart, TrendingUp, Calendar, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,82 +12,120 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { articleService } from "@/services/articleService";
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
   const { user, updateUser, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
+    avatar: user?.avatar || "",
   });
 
-  // Mock data for demonstration
-  const readingStats = {
-    articlesRead: 47,
-    totalReadTime: "12h 34m",
-    streak: 7,
-    favoriteCategories: ["AI", "Technology", "Computing"]
-  };
-
-  const bookmarkedArticles = [
-    {
-      id: 1,
-      title: "AI Revolution in Smartphone Photography",
-      category: "AI",
-      date: "2 hours ago",
-      readTime: "5 min"
-    },
-    {
-      id: 2,
-      title: "The Future of Quantum Computing",
-      category: "Computing",
-      date: "1 day ago",
-      readTime: "7 min"
-    },
-    {
-      id: 3,
-      title: "Electric Vehicle Market Trends 2024",
-      category: "Automotive",
-      date: "2 days ago",
-      readTime: "4 min"
-    }
+  const MALE_AVATARS = [
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Christopher",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Mason",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Tyler",
   ];
 
-  const readingHistory = [
-    {
-      id: 4,
-      title: "Web3 and the Decentralized Internet",
-      category: "Blockchain",
-      date: "3 hours ago",
-      readTime: "6 min",
-      progress: 100
-    },
-    {
-      id: 5,
-      title: "5G Network Deployment Progress",
-      category: "Networking",
-      date: "1 day ago",
-      readTime: "3 min",
-      progress: 80
-    },
-    {
-      id: 6,
-      title: "Machine Learning in Healthcare",
-      category: "AI",
-      date: "2 days ago",
-      readTime: "8 min",
-      progress: 45
-    }
+  const FEMALE_AVATARS = [
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Emily",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica",
+    "https://api.dicebear.com/7.x/avataaars/svg?seed=Lisa",
   ];
+
+  const [readingStats, setReadingStats] = useState({
+    articlesRead: 0,
+    totalReadTime: "0 min",
+    streak: 0,
+    favoriteCategories: [] as string[]
+  });
+
+  const [bookmarkedArticles, setBookmarkedArticles] = useState<any[]>([]);
+  const [readingHistory, setReadingHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      // Process Bookmarks
+      const bookmarks = user.bookmarks.map(id => {
+        const article = articleService.getArticleById(id);
+        return article ? {
+          id: article.id,
+          title: article.title,
+          category: article.category.split(' • ')[0],
+          date: article.date,
+          readTime: article.readTime?.replace(' read', '') || '5 min'
+        } : null;
+      }).filter(Boolean);
+      setBookmarkedArticles(bookmarks);
+
+      // Process History
+      const history = user.readingHistory.map(id => {
+        const article = articleService.getArticleById(id);
+        return article ? {
+          id: article.id,
+          title: article.title,
+          category: article.category.split(' • ')[0],
+          date: article.date,
+          readTime: article.readTime?.replace(' read', '') || '5 min',
+          progress: 100 // Assume read articles are 100% complete
+        } : null;
+      }).filter(Boolean);
+      setReadingHistory(history);
+
+      // Calculate Stats
+      const totalMinutes = history.reduce((acc, item) => {
+        const minutes = parseInt(item?.readTime || "0");
+        return acc + (isNaN(minutes) ? 0 : minutes);
+      }, 0);
+
+      // Calculate favorite categories
+      const categories: Record<string, number> = {};
+      history.forEach(item => {
+        if (item?.category) {
+          categories[item.category] = (categories[item.category] || 0) + 1;
+        }
+      });
+      const topCategories = Object.entries(categories)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([cat]) => cat);
+
+      setReadingStats({
+        articlesRead: history.length,
+        totalReadTime: totalMinutes < 60 ? `${totalMinutes} min` : `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`,
+        streak: 0, // Placeholder as we don't track dates yet
+        favoriteCategories: topCategories
+      });
+    }
+  }, [user]);
 
   const handleSaveProfile = () => {
     if (user) {
-      updateUser({
+      const updatedUser = {
         name: formData.name,
         email: formData.email,
-      });
+        avatar: formData.avatar,
+      };
+      
+      // Update global user state (which handles persistence)
+      updateUser(updatedUser);
+      
+      // Force UI update by ensuring we're no longer editing
       setIsEditing(false);
+      
+      // Force refresh of formData to match new user state
+      setFormData({
+        name: updatedUser.name,
+        email: updatedUser.email,
+        avatar: updatedUser.avatar,
+      });
     }
   };
 
@@ -134,7 +172,7 @@ const ProfilePage = () => {
               <CardContent className="pt-6">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
                   <Avatar className="w-24 h-24">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={user.avatar} alt={user.name} className="object-cover" />
                     <AvatarFallback className="text-2xl">
                       {user.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
@@ -162,12 +200,26 @@ const ProfilePage = () => {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => setIsEditing(!isEditing)}
+                      onClick={() => {
+                        setFormData({
+                          name: user.name || "",
+                          email: user.email || "",
+                          avatar: user.avatar || "",
+                        });
+                        setIsEditing(true);
+                        setActiveTab("settings");
+                      }}
                     >
                       <Settings className="w-4 h-4 mr-2" />
                       Edit Profile
                     </Button>
-                    <Button variant="outline" onClick={logout}>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        logout();
+                        navigate("/");
+                      }}
+                    >
                       Logout
                     </Button>
                   </div>
@@ -176,7 +228,7 @@ const ProfilePage = () => {
             </Card>
           </div>
 
-          <Tabs defaultValue="overview" className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="bookmarks">Bookmarks</TabsTrigger>
@@ -372,6 +424,65 @@ const ProfilePage = () => {
                 <CardContent className="space-y-4">
                   {isEditing ? (
                     <>
+                      <div className="space-y-4">
+                        <Label>Profile Picture</Label>
+                        <div className="flex items-center gap-4 mb-4">
+                          <Avatar className="w-20 h-20">
+                            <AvatarImage src={formData.avatar} alt={formData.name} className="object-cover" />
+                            <AvatarFallback>{formData.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="text-sm text-muted-foreground">
+                            Select an avatar from the list below
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-2 block">Male Avatars</Label>
+                            <div className="flex gap-3 flex-wrap">
+                              {MALE_AVATARS.map((avatar, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setFormData({ ...formData, avatar })}
+                                  className={`relative rounded-full p-1 transition-all ${
+                                    formData.avatar === avatar 
+                                      ? "ring-2 ring-primary ring-offset-2" 
+                                      : "hover:ring-2 hover:ring-muted ring-offset-1"
+                                  }`}
+                                >
+                                  <Avatar className="w-12 h-12">
+                                    <AvatarImage src={avatar} alt={`Male Avatar ${index + 1}`} />
+                                    <AvatarFallback>M{index + 1}</AvatarFallback>
+                                  </Avatar>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-2 block">Female Avatars</Label>
+                            <div className="flex gap-3 flex-wrap">
+                              {FEMALE_AVATARS.map((avatar, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => setFormData({ ...formData, avatar })}
+                                  className={`relative rounded-full p-1 transition-all ${
+                                    formData.avatar === avatar 
+                                      ? "ring-2 ring-primary ring-offset-2" 
+                                      : "hover:ring-2 hover:ring-muted ring-offset-1"
+                                  }`}
+                                >
+                                  <Avatar className="w-12 h-12">
+                                    <AvatarImage src={avatar} alt={`Female Avatar ${index + 1}`} />
+                                    <AvatarFallback>F{index + 1}</AvatarFallback>
+                                  </Avatar>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="name">Name</Label>
                         <Input

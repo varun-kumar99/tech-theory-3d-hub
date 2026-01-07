@@ -1,317 +1,282 @@
-import { useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
-import { Filter, Grid3X3, List, Calendar, TrendingUp, Eye } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Rss, Bookmark, MessageSquare, TrendingUp, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { articleService, Article } from "@/services/articleService";
 import { Link } from "react-router-dom";
-
-interface Article {
-  id: number;
-  title: string;
-  category: string;
-  excerpt: string;
-  image: string;
-  author: string;
-  date: string;
-  readTime: string;
-  views: number;
-}
 
 const CategoryPage = () => {
   const { category } = useParams();
-  const [sortBy, setSortBy] = useState("latest");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const navigate = useNavigate();
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const categoryMap: Record<string, string> = {
     "ai": "AI",
     "computing": "Computing", 
     "automotive": "Automotive",
     "blockchain": "Blockchain",
-    "networking": "Networking"
+    "networking": "Networking",
+    "smartphones": "Smartphones",
+    "gadgets": "Gadgets",
+    "ev": "EV",
+    "dc": "DC",
+    "ios": "iOS",
+    "android": "Android",
+    "apple": "Apple",
+    "amazon-prime": "Amazon Prime",
+    "netflix": "Netflix",
+    "hotstar": "Hotstar",
+    "marvel": "Marvel",
+    "games": "Games",
+    "movies": "Movies",
+    "anime": "Anime",
+    "cars": "Cars",
+    "bikes": "Bikes"
   };
 
-  const currentCategory = category ? categoryMap[category.toLowerCase()] || category : "All";
+  const currentCategory = category ? categoryMap[category.toLowerCase()] || category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, " ") : "All";
+
+  useEffect(() => {
+    const fetchArticles = async () => {
+      setIsLoading(true);
+      try {
+        const data = await articleService.getPublishedArticles();
+        setArticles(data);
+      } catch (error) {
+        console.error("Failed to fetch articles:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchArticles();
+  }, []);
 
   const filteredArticles = useMemo(() => {
-    // Mock articles data
-    const allArticles: Article[] = [
-      {
-        id: 1,
-        title: "AI Revolution in Smartphone Photography",
-        category: "AI",
-        excerpt: "How machine learning is transforming mobile cameras and computational photography...",
-        image: "https://images.unsplash.com/photo-1573164713988-8665fc963095?w=400&h=250&fit=crop",
-        author: "Sarah Chen",
-        date: "2 hours ago",
-        readTime: "5 min",
-        views: 1247
-      },
-      {
-        id: 2,
-        title: "The Future of Quantum Computing",
-        category: "Computing",
-        excerpt: "Exploring the potential of quantum computers in solving complex problems...",
-        image: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=250&fit=crop",
-        author: "David Kim",
-        date: "4 hours ago",
-        readTime: "7 min",
-        views: 892
-      },
-      {
-        id: 3,
-        title: "Electric Vehicle Market Trends 2024",
-        category: "Automotive",
-        excerpt: "Analysis of the growing electric vehicle market and key players...",
-        image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400&h=250&fit=crop",
-        author: "Lisa Wang",
-        date: "6 hours ago",
-        readTime: "4 min",
-        views: 645
-      },
-      {
-        id: 4,
-        title: "Machine Learning in Healthcare Diagnostics",
-        category: "AI",
-        excerpt: "How AI is revolutionizing medical diagnosis and patient care...",
-        image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=250&fit=crop",
-        author: "Dr. Emily Rodriguez",
-        date: "8 hours ago",
-        readTime: "6 min",
-        views: 1156
-      },
-      {
-        id: 5,
-        title: "Neural Networks and Deep Learning Advances",
-        category: "AI",
-        excerpt: "Latest breakthroughs in neural network architectures and training methods...",
-        image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=250&fit=crop",
-        author: "Prof. Michael Chen",
-        date: "12 hours ago",
-        readTime: "8 min",
-        views: 789
-      },
-      {
-        id: 6,
-        title: "Edge Computing Revolution",
-        category: "Computing",
-        excerpt: "How edge computing is transforming data processing and IoT applications...",
-        image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=250&fit=crop",
-        author: "Alex Johnson",
-        date: "1 day ago",
-        readTime: "5 min",
-        views: 934
-      }
-    ];
+    const searchCategory = (category?.toLowerCase() || "").replace(/-/g, " ");
     
     const filtered = currentCategory === "All" 
-      ? allArticles 
-      : allArticles.filter(article => article.category === currentCategory);
+      ? articles 
+      : articles.filter(article => {
+          // Check primary category
+          if (article.category.toLowerCase().includes(searchCategory)) return true;
+          
+          // Check sub category
+          if (article.subCategory?.toLowerCase().includes(searchCategory)) return true;
+          
+          // Check tags
+          if (article.tags?.some(tag => {
+            const t = tag.toLowerCase();
+            const s = searchCategory;
+            // Match exact, singular/plural variants
+            return t === s || t === s + 's' || t + 's' === s;
+          })) return true;
 
+          // Special handling for EV inclusion in Cars/Bikes pages
+           if (article.subCategory === "EV") {
+              if (searchCategory === "cars" && !/bike|motorcycle|scooter/i.test(article.title)) return true;
+              if (searchCategory === "bikes" && /bike|motorcycle|scooter/i.test(article.title)) return true;
+           }
+
+           // Entertainment Cross-Categorization
+           const titleLower = article.title.toLowerCase();
+           const subCatLower = (article.subCategory || "").toLowerCase();
+           const catLower = article.category.toLowerCase();
+
+           // 1. Marvel/DC -> Movies
+           if (searchCategory === "movies") {
+              if (subCatLower === "marvel" || subCatLower === "dc") return true;
+              // Include Netflix/Prime if explicitly identified as movie/film
+              if ((subCatLower === "netflix" || subCatLower === "amazon prime" || subCatLower === "hotstar") && 
+                  (titleLower.includes("movie") || titleLower.includes("film"))) return true;
+           }
+
+           // 2. Animated content -> Anime
+           if (searchCategory === "anime") {
+              if (titleLower.includes("animated") || titleLower.includes("animation") || titleLower.includes("anime")) return true;
+              if (article.tags?.some(t => t.toLowerCase().includes("anime") || t.toLowerCase().includes("animated"))) return true;
+           }
+
+           // 3. Movies/etc -> Marvel/DC (Bi-directional)
+           if (searchCategory === "marvel" && (titleLower.includes("marvel") || titleLower.includes("mcu") || titleLower.includes("avengers"))) return true;
+           if (searchCategory === "dc" && (titleLower.includes("dc") || titleLower.includes("batman") || titleLower.includes("superman") || titleLower.includes("joker"))) return true;
+
+           // 4. Movies/etc -> Netflix/Prime (Bi-directional)
+           if (searchCategory === "netflix" && titleLower.includes("netflix")) return true;
+           if (searchCategory === "amazon prime" && (titleLower.includes("amazon prime") || titleLower.includes("prime video"))) return true;
+           if (searchCategory === "hotstar" && (titleLower.includes("hotstar") || titleLower.includes("disney+"))) return true;
+            
+           // Check status (double check for published)
+          if ((article.status || '').toLowerCase() !== 'published') return false;
+
+          return false;
+      });
+
+    // Default sort by latest for the new design
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [currentCategory, articles, category]);
+
+  const featuredArticles = filteredArticles.slice(0, 6);
+  const latestArticles = filteredArticles.slice(6);
+
+  // Helper to format date relative (mock implementation, ideally use date-fns)
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
-    // Sort articles
-    const sortedFiltered = [...filtered];
-    switch (sortBy) {
-      case "latest":
-        sortedFiltered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        break;
-      case "popular":
-        sortedFiltered.sort((a, b) => b.views - a.views);
-        break;
-      case "trending":
-        // Mock trending logic
-        sortedFiltered.sort((a, b) => b.views - a.views);
-        break;
-      default:
-        break;
-    }
-
-    return sortedFiltered;
-  }, [currentCategory, sortBy]);  const categoryStats = {
-    totalArticles: filteredArticles.length,
-    totalViews: filteredArticles.reduce((sum, article) => sum + article.views, 0),
-    avgReadTime: Math.round(
-      filteredArticles.reduce((sum, article) => sum + parseInt(article.readTime), 0) / 
-      filteredArticles.length
-    )
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    return date.toLocaleDateString();
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-8 pb-16 flex justify-center items-center h-[60vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="pt-20">
+      <main className="pt-8 pb-16">
         <div className="container mx-auto px-4">
-          {/* Category Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                  {currentCategory} Articles
-                </h1>
-                <p className="text-muted-foreground">
-                  Discover the latest {currentCategory.toLowerCase()} insights and innovations
-                </p>
-              </div>
-              
-              <Badge variant="secondary" className="text-lg px-4 py-2">
-                {categoryStats.totalArticles} Articles
-              </Badge>
-            </div>
-
-            {/* Category Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Articles</p>
-                    <p className="text-2xl font-bold">{categoryStats.totalArticles}</p>
-                  </div>
-                  <Filter className="h-8 w-8 text-muted-foreground" />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Views</p>
-                    <p className="text-2xl font-bold">{categoryStats.totalViews.toLocaleString()}</p>
-                  </div>
-                  <Eye className="h-8 w-8 text-muted-foreground" />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Avg. Read Time</p>
-                    <p className="text-2xl font-bold">{categoryStats.avgReadTime}m</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Controls */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="latest">Latest</SelectItem>
-                    <SelectItem value="popular">Most Popular</SelectItem>
-                    <SelectItem value="trending">Trending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("grid")}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("list")}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
+          {/* Header Section */}
+          <div className="mb-8 border-b border-border/40 pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(-1)}
+                className="flex items-center space-x-1 px-0 hover:bg-transparent text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-base font-medium">Back</span>
+              </Button>
+              <span className="text-muted-foreground text-base">/</span>
+              <h1 className="text-base font-bold uppercase tracking-tight text-blue-500">{currentCategory}</h1>
             </div>
           </div>
 
-          {/* Articles */}
           {filteredArticles.length > 0 ? (
-            <div className={
-              viewMode === "grid" 
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-6"
-            }>
-              {filteredArticles.map((article) => (
-                <Card key={article.id} className="group hover:shadow-lg transition-shadow">
-                  <CardContent className="p-0">
-                    <Link to={`/article/${article.id}`}>
-                      {viewMode === "grid" ? (
-                        <div>
-                          <div className="relative">
-                            <img
-                              src={article.image}
-                              alt={article.title}
-                              className="w-full h-48 object-cover rounded-t-lg"
-                            />
-                            <div className="absolute top-3 left-3">
-                              <Badge>{article.category}</Badge>
-                            </div>
-                          </div>
-                          <div className="p-6">
-                            <h3 className="text-lg font-semibold mb-2 group-hover:text-primary">
-                              {article.title}
-                            </h3>
-                            <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
-                              {article.excerpt}
-                            </p>
-                            <div className="flex items-center justify-between text-sm text-muted-foreground">
-                              <span>{article.author}</span>
-                              <div className="flex items-center gap-2">
-                                <span>{article.date}</span>
-                                <span>•</span>
-                                <span>{article.readTime} read</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-4 p-6">
-                          <img
-                            src={article.image}
-                            alt={article.title}
-                            className="w-32 h-24 object-cover rounded-lg flex-shrink-0"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Badge variant="secondary">{article.category}</Badge>
-                              <span className="text-sm text-muted-foreground">{article.date}</span>
-                            </div>
-                            <h3 className="font-semibold mb-2 group-hover:text-primary">
-                              {article.title}
-                            </h3>
-                            <p className="text-sm text-muted-foreground line-clamp-2">
-                              {article.excerpt}
-                            </p>
-                            <div className="flex items-center justify-between mt-2 text-sm text-muted-foreground">
-                              <span>by {article.author}</span>
-                              <div className="flex items-center gap-2">
-                                <span>{article.readTime} read</span>
-                                <span>•</span>
-                                <span>{article.views} views</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+            <div className="space-y-12">
+              {/* Featured Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Large Cards (Top Row) - First 2 items */}
+                {featuredArticles.slice(0, 2).map((article) => (
+                  <Link 
+                    key={article.id} 
+                    to={`/article/${article.id}`}
+                    className="col-span-1 md:col-span-2 relative group overflow-hidden rounded-xl aspect-video md:aspect-[16/9]"
+                  >
+                    <img
+                      src={article.image}
+                      alt={article.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-6 w-full">
+                      {article.subCategory && (
+                        <Badge variant="secondary" className="mb-3 bg-blue-600 hover:bg-blue-700 text-white border-none">
+                          {article.subCategory}
+                        </Badge>
                       )}
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))}
+                      <h2 className="text-xl md:text-2xl font-bold text-white leading-tight group-hover:underline decoration-2 underline-offset-4">
+                        {article.title}
+                      </h2>
+                    </div>
+                  </Link>
+                ))}
+
+                {/* Smaller Cards (Bottom Row) - Next 4 items */}
+                {featuredArticles.slice(2, 6).map((article) => (
+                  <Link 
+                    key={article.id} 
+                    to={`/article/${article.id}`}
+                    className="col-span-1 relative group overflow-hidden rounded-xl aspect-video"
+                  >
+                    <img
+                      src={article.image}
+                      alt={article.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 left-0 p-4 w-full">
+                      <h3 className="text-sm font-bold text-white leading-snug group-hover:underline decoration-1 underline-offset-2 line-clamp-3">
+                        {article.title}
+                      </h3>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Latest Section */}
+              {latestArticles.length > 0 && (
+                <div className="space-y-6 max-w-5xl">
+                  <div className="relative pt-6 mb-6">
+                    <div className="absolute top-0 left-0 w-full h-[1px] bg-border/40"></div>
+                    <div className="absolute top-0 left-0 w-16 h-[2px] bg-yellow-500"></div>
+                    <h2 className="text-base font-bold uppercase tracking-tight">Latest</h2>
+                  </div>
+                  
+                  <div className="grid gap-6">
+                    {latestArticles.map((article) => (
+                      <Link key={article.id} to={`/article/${article.id}`}>
+                        <Card className="bg-transparent border-none shadow-none group hover:bg-accent/5 transition-colors p-2 -mx-2 rounded-lg">
+                          <div className="flex flex-col sm:flex-row gap-6">
+                            <div className="sm:w-64 aspect-video flex-shrink-0 overflow-hidden rounded-lg">
+                              <img
+                                src={article.image}
+                                alt={article.title}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0 py-1">
+                              <div className="text-xs text-muted-foreground mb-2">
+                                {formatRelativeTime(article.date)}
+                              </div>
+                              <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors leading-tight">
+                                {article.title}
+                              </h3>
+                              <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+                                {article.excerpt}
+                              </p>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground font-medium">
+                                <span className="text-foreground">By {article.author}</span>
+                                <div className="flex items-center gap-1">
+                                  <MessageSquare className="w-3 h-3" />
+                                  <span>0</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No articles found</h3>
-              <p className="text-muted-foreground mb-4">
+            <div className="text-center py-24">
+              <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-6 opacity-50" />
+              <h3 className="text-2xl font-bold mb-3">No articles found</h3>
+              <p className="text-muted-foreground mb-8 text-lg">
                 We couldn't find any articles in the {currentCategory} category.
               </p>
               <Link to="/">
-                <Button>Browse All Articles</Button>
+                <Button size="lg">Browse All Articles</Button>
               </Link>
             </div>
           )}

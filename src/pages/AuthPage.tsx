@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const AuthPage = () => {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   // Login state
@@ -55,9 +55,20 @@ const AuthPage = () => {
     });
   };
 
-  const handleGoogleSignIn = () => {
-    // Placeholder for Google Sign In
-    toast.info("Google Sign In would be implemented here");
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const success = await loginWithGoogle();
+      if (success) {
+        toast.success("Successfully signed in with Google!");
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      toast.error("Google sign in failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -193,7 +204,7 @@ const AuthPage = () => {
                 <Button 
                   variant="outline" 
                   className="w-full h-12 text-base font-medium border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
-                  onClick={() => toast.info("Account creation feature coming soon!")}
+                  onClick={() => navigate("/signup")}
                 >
                   Create an account
                 </Button>
@@ -215,6 +226,7 @@ const AuthPage = () => {
                 variant="outline"
                 className="w-full h-12 text-base font-medium"
                 onClick={handleGoogleSignIn}
+                disabled={isLoading}
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

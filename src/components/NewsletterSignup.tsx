@@ -40,62 +40,35 @@ const NewsletterSignup = () => {
   }
 
   return (
-    <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
-      <CardHeader className="text-center">
-        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail className="w-6 h-6 text-primary-foreground" />
+    <Card className="bg-gradient-to-r from-primary/10 to-primary/5 max-w-2xl mx-auto">
+      <CardHeader className="text-center pb-2 pt-6">
+        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center mx-auto mb-3">
+          <Mail className="w-5 h-5 text-primary-foreground" />
         </div>
-        <CardTitle className="text-2xl">Stay Updated</CardTitle>
-        <CardDescription className="text-lg">
+        <CardTitle className="text-xl">Stay Updated</CardTitle>
+        <CardDescription className="text-base">
           Get the latest tech news and insights delivered to your inbox weekly
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-2 max-w-4xl mx-auto">
+      <CardContent className="pb-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
             <Input
               type="email"
               placeholder="Enter your email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 h-12 text-base px-4"
+              className="flex-1 h-10 text-sm px-4"
               required
             />
-            <Button type="submit" disabled={isLoading} className="whitespace-nowrap h-12 px-6">
+            <Button type="submit" disabled={isLoading} className="whitespace-nowrap h-10 px-6 text-sm">
               {isLoading ? "Subscribing..." : "Subscribe"}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-[10px] text-muted-foreground text-center">
             By subscribing, you agree to receive our newsletter and can unsubscribe at any time.
           </p>
         </form>
-        
-        {/* Newsletter Benefits */}
-        <div className="mt-4 max-w-lg mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-            <div className="text-center">
-              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-1">
-                <span className="text-primary font-bold">📧</span>
-              </div>
-              <p className="font-medium">Weekly Digest</p>
-              <p className="text-muted-foreground text-xs">Top stories curated</p>
-            </div>
-            <div className="text-center">
-              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-1">
-                <span className="text-primary font-bold">🚀</span>
-              </div>
-              <p className="font-medium">Early Access</p>
-              <p className="text-muted-foreground text-xs">Exclusive content</p>
-            </div>
-            <div className="text-center">
-              <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-1">
-                <span className="text-primary font-bold">💡</span>
-              </div>
-              <p className="font-medium">Expert Insights</p>
-              <p className="text-muted-foreground text-xs">Industry analysis</p>
-            </div>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
