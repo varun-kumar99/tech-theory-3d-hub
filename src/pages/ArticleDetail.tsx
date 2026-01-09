@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Clock, Eye, Heart, Share2, MessageCircle, ThumbsUp, Instagram, Linkedin, Facebook, Globe, Send, Edit, Twitter } from "lucide-react";
+import { ArrowLeft, Clock, Eye, Heart, Share2, MessageCircle, ThumbsUp, Instagram, Linkedin, Facebook, Globe, Send, Edit, Twitter, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import Navbar from "@/components/Navbar";
@@ -32,7 +32,7 @@ const ArticleDetail = () => {
   const [readingProgress, setReadingProgress] = useState(0);
   const [hasAd, setHasAd] = useState(false); // Control ad visibility
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, addToReadingHistory } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogMessage, setAuthDialogMessage] = useState({ title: "", description: "" });
   const commentsRef = useRef<HTMLDivElement>(null);
@@ -82,17 +82,61 @@ const ArticleDetail = () => {
     commentsRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!article) return;
+    
+    // Optimistic update
+    const previousArticle = article;
+    const updatedComments = article.comments?.filter(c => c.id !== commentId);
+    setArticle({ ...article, comments: updatedComments });
+
+    const result = await articleService.deleteComment(article.id, commentId);
+    
+    if (result) {
+      setArticle(result);
+      toast({
+        title: "Success",
+        description: "Comment deleted successfully.",
+      });
+    } else {
+      // Revert if failed
+      setArticle(previousArticle);
+      toast({
+        title: "Error",
+        description: "Failed to delete comment.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleLike = async () => {
     if (!article) return;
     
+    // Optimistic Update
+    const previousArticle = article;
+    const previousIsLiked = isLiked;
+    
     const newIsLiked = !isLiked;
     setIsLiked(newIsLiked);
-    
+    setArticle({ ...article, likes: article.likes + (newIsLiked ? 1 : -1) }); // Update UI immediately
+
     // Update article stats
     const change = newIsLiked ? 1 : -1;
     const updated = await articleService.updateLikes(article.id, change);
+    
     if (updated) {
-      setArticle(updated);
+       // Ensure we keep the local state if the server confirms
+       setArticle(updated); 
+    } else {
+        // Revert on failure
+        setArticle(previousArticle);
+        setIsLiked(previousIsLiked);
+        toast({
+            title: "Error",
+            description: "Failed to update like status.",
+            variant: "destructive"
+        });
+        return;
     }
 
     // Persist user like state locally
@@ -107,6 +151,9 @@ const ArticleDetail = () => {
   };
 
   useEffect(() => {
+    // Scroll to top when article changes
+    window.scrollTo(0, 0);
+
     const fetchArticleData = async () => {
       if (!id) return;
       
@@ -114,6 +161,8 @@ const ArticleDetail = () => {
       const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
       if (likedArticles.includes(String(id))) {
         setIsLiked(true);
+      } else {
+        setIsLiked(false);
       }
 
       // Increment views if not already viewed in this session
@@ -198,6 +247,13 @@ const ArticleDetail = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Add to reading history when article is loaded and user is available
+  useEffect(() => {
+    if (article && user) {
+      addToReadingHistory(Number(article.id));
+    }
+  }, [article?.id, user?.id, addToReadingHistory]);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -294,11 +350,11 @@ const ArticleDetail = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setIsLiked(!isLiked)}
+                        onClick={handleLike}
                         className={isLiked ? "text-red-500" : ""}
                       >
                         <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-                        <span className="ml-1">{article.likes + (isLiked ? 1 : 0)}</span>
+                        <span className="ml-1">{article.likes}</span>
                       </Button>
                       
                       <BookmarkButton 
@@ -501,16 +557,20 @@ const ArticleDetail = () => {
                   <div className="mt-8 pt-8 border-t border-border">
                     <div className="flex flex-col md:flex-row gap-6 items-start bg-secondary/30 p-6 rounded-lg">
                       <div className="flex-shrink-0">
-                        <div className="w-16 h-16 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-2xl font-bold text-primary">
-                          {authorData.avatar ? (
-                            <img src={authorData.avatar} alt={authorData.name} className="w-full h-full object-cover" />
-                          ) : (
-                            authorData.name.charAt(0).toUpperCase()
-                          )}
-                        </div>
+                        <Link to={`/author/${encodeURIComponent(authorData.name)}`} className="block transition-opacity hover:opacity-80">
+                          <div className="w-16 h-16 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-2xl font-bold text-primary">
+                            {authorData.avatar ? (
+                              <img src={authorData.avatar} alt={authorData.name} className="w-full h-full object-cover" />
+                            ) : (
+                              authorData.name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        </Link>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold mb-2 text-foreground">About {authorData.name}</h3>
+                        <h3 className="text-lg font-bold mb-2 text-foreground">
+                          About <Link to={`/author/${encodeURIComponent(authorData.name)}`} className="hover:text-primary transition-colors hover:underline">{authorData.name}</Link>
+                        </h3>
                         {authorData.bio && (
                           <p className="text-muted-foreground mb-4 leading-relaxed text-sm">
                             {authorData.bio}
@@ -554,7 +614,7 @@ const ArticleDetail = () => {
                   </h3>
 
                   {/* Comment Form */}
-                  <div className="mb-8 bg-secondary/30 p-6 rounded-lg">
+                  <div className="mb-8">
                     <div className="space-y-4">
                       <div className="flex items-start gap-4">
                         {user && (
@@ -585,19 +645,30 @@ const ArticleDetail = () => {
                   <div className="space-y-6">
                     {article.comments && article.comments.length > 0 ? (
                       article.comments.map((comment) => (
-                        <div key={comment.id} className="flex gap-4">
+                        <div key={comment.id} className="flex gap-4 group">
                           <Avatar>
                             <AvatarImage src={comment.avatar} />
                             <AvatarFallback>{comment.author.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
-                          <div className="flex-1">
-                            <div className="bg-background border border-border rounded-lg p-4">
-                              <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 flex items-center justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
                                 <span className="font-semibold text-sm">{comment.author}</span>
                                 <span className="text-xs text-muted-foreground">{comment.date}</span>
                               </div>
                               <p className="text-sm text-foreground">{comment.content}</p>
                             </div>
+                            
+                            {user && (user.name === comment.author || (comment.userId && user.id === comment.userId)) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                                onClick={() => handleDeleteComment(comment.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))

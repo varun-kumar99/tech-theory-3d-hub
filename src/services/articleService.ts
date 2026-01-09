@@ -7,6 +7,7 @@ export interface Comment {
   content: string;
   date: string;
   avatar?: string;
+  userId?: string;
 }
 
 export interface Article {
@@ -339,7 +340,8 @@ export const articleService = {
           author: c.user?.full_name || 'Anonymous',
           content: c.content,
           date: new Date(c.created_at).toLocaleDateString(),
-          avatar: c.user?.avatar_url
+          avatar: c.user?.avatar_url,
+          userId: c.user_id
         }));
       }
       
@@ -347,7 +349,8 @@ export const articleService = {
     }
 
     const articles = await articleService.getAllArticles();
-    return articles.find(a => String(a.id) === String(id));
+    // Use loose equality to match number vs string ID
+    return articles.find(a => a.id == id);
   },
 
   saveArticle: async (article: Article): Promise<void> => {
@@ -415,6 +418,36 @@ export const articleService = {
     const articles = await articleService.getAllArticles();
     const filtered = articles.filter(a => String(a.id) !== String(id));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  },
+
+  deleteComment: async (articleId: string | number, commentId: string): Promise<Article | null> => {
+    if (isSupabaseConfigured()) {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+      
+      if (error) {
+        console.error("Error deleting comment:", error);
+        return null;
+      }
+      
+      return articleService.getArticleById(articleId).then(res => res || null);
+    }
+
+    const articles = await articleService.getAllArticles();
+    const index = articles.findIndex(a => String(a.id) === String(articleId));
+    
+    if (index >= 0) {
+      const article = articles[index];
+      if (article.comments) {
+        article.comments = article.comments.filter(c => c.id !== commentId);
+        articles[index] = article;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(articles));
+        return article;
+      }
+    }
+    return null;
   },
 
   addComment: async (articleId: string | number, comment: Comment): Promise<Article | null> => {

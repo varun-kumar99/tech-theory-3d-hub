@@ -15,13 +15,13 @@ const AdminAuth = () => {
   
   // Admin state
   const [adminData, setAdminData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
 
   // Author state
   const [authorData, setAuthorData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
 
@@ -32,7 +32,10 @@ const AdminAuth = () => {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!adminData.email || !adminData.password) {
+    const username = adminData.username.trim();
+    const password = adminData.password.trim();
+
+    if (!username || !password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -47,36 +50,44 @@ const AdminAuth = () => {
       // Check against stored users
       const users = userService.getAllUsers();
       const adminUser = users.find(u => 
-        u.email === adminData.email && 
-        u.password === adminData.password && 
+        u.username === username && 
+        u.password === password && 
         u.role === 'admin' &&
         u.status === 'active'
       );
 
-      // Also allow hardcoded demo credentials if not found in DB (fallback)
-      const isDemoAdmin = adminData.email === "admin@techtheory.com" && adminData.password === "admin123";
-
-      if (adminUser || isDemoAdmin) {
+      if (adminUser) {
         localStorage.setItem("admin-auth", JSON.stringify({
           role: "admin",
-          user: adminUser ? { name: adminUser.name, email: adminUser.email } : { name: "Admin", email: adminData.email }
+          user: { name: adminUser.name, email: adminUser.email }
         }));
         toast({
           title: "Success",
-          description: "Welcome Admin!"
+          description: `Welcome ${adminUser.name}!`
         });
         navigate("/admin/dashboard");
       } else {
-        toast({
-          title: "Error",
-          description: "Invalid admin credentials",
-          variant: "destructive"
-        });
+        // Check if user exists but with wrong role
+        const wrongRoleUser = users.find(u => u.username === username && u.password === password);
+        if (wrongRoleUser) {
+           toast({
+            title: "Error",
+            description: `This is an ${wrongRoleUser.role} account. Please use the ${wrongRoleUser.role === 'author' ? 'Author' : 'Admin'} tab.`,
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Invalid admin credentials",
+            variant: "destructive"
+          });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Error",
-        description: "Login failed. Please try again.",
+        description: `Login failed: ${error.message || "Unknown error"}`,
         variant: "destructive"
       });
     } finally {
@@ -87,7 +98,10 @@ const AdminAuth = () => {
   const handleAuthorLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!authorData.email || !authorData.password) {
+    const username = authorData.username.trim();
+    const password = authorData.password.trim();
+    
+    if (!username || !password) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -101,37 +115,57 @@ const AdminAuth = () => {
     try {
       // Check against stored users
       const users = userService.getAllUsers();
+      console.log("Checking credentials against users:", users.length);
+      
       const authorUser = users.find(u => 
-        u.email === authorData.email && 
-        u.password === authorData.password && 
+        u.username === username && 
+        u.password === password && 
         u.role === 'author' &&
         u.status === 'active'
       );
 
-      // Also allow hardcoded demo credentials if not found in DB (fallback)
-      const isDemoAuthor = authorData.email === "author@techtheory.com" && authorData.password === "author123";
-
-      if (authorUser || isDemoAuthor) {
+      if (authorUser) {
         localStorage.setItem("admin-auth", JSON.stringify({
           role: "author",
-          user: authorUser ? { name: authorUser.name, email: authorUser.email } : { name: "Author", email: authorData.email }
+          user: { name: authorUser.name, email: authorUser.email }
         }));
         toast({
           title: "Success",
-          description: "Welcome Author!"
+          description: `Welcome ${authorUser.name}!`
         });
         navigate("/admin/author-dashboard");
       } else {
-        toast({
-          title: "Error",
-          description: "Invalid author credentials",
-          variant: "destructive"
-        });
+          // Check if user exists but with wrong role
+         const wrongRoleUser = users.find(u => u.username === username && u.password === password);
+         if (wrongRoleUser) {
+            toast({
+             title: "Error",
+             description: `This is an ${wrongRoleUser.role} account. Please use the ${wrongRoleUser.role === 'admin' ? 'Admin' : 'Author'} tab.`,
+             variant: "destructive"
+           });
+         } else {
+           // Fallback debug - check if username exists but password wrong
+           const userExists = users.find(u => u.username === username);
+           if (userExists) {
+             toast({
+               title: "Error",
+               description: "Invalid password",
+               variant: "destructive"
+             });
+           } else {
+             toast({
+               title: "Error",
+               description: "User not found",
+               variant: "destructive"
+             });
+           }
+         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Error",
-        description: "Login failed. Please try again.",
+        description: `Login failed: ${error.message || "Unknown error"}`,
         variant: "destructive"
       });
     } finally {
@@ -177,13 +211,14 @@ const AdminAuth = () => {
               <TabsContent value="admin" className="space-y-4 mt-6">
                 <form onSubmit={handleAdminLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="admin-email" className="text-white">Email</Label>
+                    <Label htmlFor="admin-username" className="text-white">Username</Label>
                     <Input
-                      id="admin-email"
-                      type="email"
-                      placeholder="admin@techtheory.com"
-                      value={adminData.email}
-                      onChange={(e) => setAdminData({ ...adminData, email: e.target.value })}
+                      id="admin-username"
+                      type="text"
+                      placeholder="Username"
+                      autoComplete="off"
+                      value={adminData.username}
+                      onChange={(e) => setAdminData({ ...adminData, username: e.target.value })}
                       className="bg-white/20 border-white/30 text-white placeholder-gray-300"
                       required
                     />
@@ -220,13 +255,14 @@ const AdminAuth = () => {
               <TabsContent value="author" className="space-y-4 mt-6">
                 <form onSubmit={handleAuthorLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="author-email" className="text-white">Email</Label>
+                    <Label htmlFor="author-username" className="text-white">Username</Label>
                     <Input
-                      id="author-email"
-                      type="email"
-                      placeholder="author@techtheory.com"
-                      value={authorData.email}
-                      onChange={(e) => setAuthorData({ ...authorData, email: e.target.value })}
+                      id="author-username"
+                      type="text"
+                      placeholder="Username"
+                      autoComplete="off"
+                      value={authorData.username}
+                      onChange={(e) => setAuthorData({ ...authorData, username: e.target.value })}
                       className="bg-white/20 border-white/30 text-white placeholder-gray-300"
                       required
                     />

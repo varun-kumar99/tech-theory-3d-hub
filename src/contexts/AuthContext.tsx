@@ -104,6 +104,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
       const bookmarks = bookmarksData?.map(b => Number(b.article_id)) || [];
 
+      // Fetch reading history from user_reading_history table
+      const { data: historyData } = await supabase
+        .from('user_reading_history')
+        .select('article_id')
+        .eq('user_id', supabaseUser.id)
+        .order('last_read_at', { ascending: false })
+        .limit(50);
+
+      const readingHistory = historyData?.map(h => Number(h.article_id)) || [];
+
       // Construct app user object
       const appUser: User = {
         id: supabaseUser.id,
@@ -116,7 +126,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           emailNotifications: true
         },
         bookmarks: bookmarks,
-        readingHistory: [] // Reading history could be another table
+        readingHistory: readingHistory
       };
       
       setUser(appUser);
@@ -289,8 +299,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const addBookmark = async (articleId: number) => {
-    if (user && !user.bookmarks.includes(articleId)) {
-      const updatedBookmarks = [...user.bookmarks, articleId];
+    const id = Number(articleId);
+    if (user && !user.bookmarks.includes(id)) {
+      const updatedBookmarks = [...user.bookmarks, id];
       
       // Update local state immediately for UI responsiveness
       const updatedUser = {
@@ -315,8 +326,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const removeBookmark = async (articleId: number) => {
+    const id = Number(articleId);
     if (user) {
-      const updatedBookmarks = user.bookmarks.filter(id => id !== articleId);
+      const updatedBookmarks = user.bookmarks.filter(bId => bId !== id);
       
       // Update local state
       const updatedUser = {
@@ -332,7 +344,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           .from('bookmarks')
           .delete()
           .eq('user_id', user.id)
-          .eq('article_id', articleId);
+          .eq('article_id', id);
           
         if (error) {
           console.error("Error removing bookmark from Supabase:", error);
@@ -342,8 +354,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const addToReadingHistory = async (articleId: number) => {
-    if (user && !user.readingHistory.includes(articleId)) {
-      const updatedHistory = [articleId, ...user.readingHistory.slice(0, 49)]; // Keep last 50
+    // Check if user exists and if the article is not already at the top of the history
+    // We allow re-reading, but if it's the most recent one, we don't duplicate it immediately
+    if (user && user.readingHistory[0] !== articleId) {
+      // Remove previous occurrence of this article to avoid duplicates in the list
+      const filteredHistory = user.readingHistory.filter(id => id !== articleId);
+      const updatedHistory = [articleId, ...filteredHistory].slice(0, 50); // Keep last 50 unique articles
       
       // Update local state
       const updatedUser = {
@@ -353,17 +369,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
-      // Sync with Supabase (storing in preferences for now as schema doesn't have reading_history table)
+      // Sync with Supabase
       if (isSupabaseConfigured()) {
-        const updatedPreferences = {
-          ...user.preferences,
-          reading_history: updatedHistory
-        };
-        
         const { error } = await supabase
-          .from('profiles')
-          .update({ preferences: updatedPreferences })
-          .eq('id', user.id);
+          .from('user_reading_history')
+          .upsert({ 
+            user_id: user.id, 
+            article_id: articleId,
+            last_read_at: new Date().toISOString()
+          });
           
         if (error) {
           console.error("Error updating reading history in Supabase:", error);

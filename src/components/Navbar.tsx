@@ -15,6 +15,7 @@ import { useBookmarks } from "@/contexts/BookmarkContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Link, useNavigate } from "react-router-dom";
 import { articleService, Article } from "@/services/articleService";
+import { AuthDialog } from "./AuthDialog";
 
 const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,6 +30,7 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const { bookmarks } = useBookmarks();
   const navigate = useNavigate();
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -308,7 +310,7 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/bookmarks" className="flex items-center justify-between">
+                    <Link to="/profile?tab=bookmarks" className="flex items-center justify-between">
                       <div className="flex items-center">
                         <BookmarkIcon className="mr-2 h-4 w-4" />
                         Bookmarks
@@ -321,7 +323,7 @@ const Navbar = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/profile" className="flex items-center">
+                    <Link to="/profile?tab=settings" className="flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </Link>
@@ -335,16 +337,23 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <div className="flex items-center space-x-2">
-                <Link to="/auth">
-                  <Button variant="outline" className="text-sm font-medium border-2 border-gray-300/30 hover:border-gray-400/50 hover:bg-gray-50 transition-all duration-300">
-                    Sign In
-                  </Button>
-                </Link>
+                <Button 
+                  variant="outline" 
+                  className="text-sm font-medium border-2 border-gray-300/30 hover:border-gray-400/50 hover:bg-gray-50 transition-all duration-300"
+                  onClick={() => setIsAuthDialogOpen(true)}
+                >
+                  Sign In
+                </Button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      <AuthDialog 
+        isOpen={isAuthDialogOpen} 
+        onOpenChange={setIsAuthDialogOpen} 
+      />
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
@@ -460,7 +469,7 @@ const Navbar = () => {
                       <Link to="/profile">Profile</Link>
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <Link to="/bookmarks">Bookmarks</Link>
+                      <Link to="/profile?tab=bookmarks">Bookmarks</Link>
                     </Button>
                     <Button variant="outline" size="sm" onClick={handleLogout}>
                       Log out
@@ -468,11 +477,15 @@ const Navbar = () => {
                   </div>
                 </div>
               ) : (
-                <Link to="/auth">
-                  <Button className="w-full">
-                    Sign In
-                  </Button>
-                </Link>
+                <Button 
+                  className="w-full"
+                  onClick={() => {
+                    setIsAuthDialogOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  Sign In
+                </Button>
               )}
             </div>
           </div>

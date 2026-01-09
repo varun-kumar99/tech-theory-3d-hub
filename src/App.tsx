@@ -8,8 +8,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArticleDetail from "./pages/ArticleDetail";
 import SearchPage from "./pages/SearchPage";
-import AuthPage from "./pages/AuthPage";
-import SignUp from "./pages/SignUp";
 import ProfilePage from "./pages/ProfilePage";
 import BookmarksPage from "./pages/BookmarksPage";
 import CategoryPage from "./pages/CategoryPage";
@@ -17,7 +15,12 @@ import AdminAuth from "./pages/AdminAuth";
 import AdminDashboard from "./pages/AdminDashboard";
 import AuthorDashboard from "./pages/AuthorDashboard";
 import CreateArticle from "./pages/CreateArticle";
+import ManageCredentials from "./pages/ManageCredentials";
 import PublicAuthorProfile from "./pages/PublicAuthorProfile";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import ContactPage from "./pages/ContactPage";
+import AboutPage from "./pages/AboutPage";
+import ScrollToTop from "./components/ScrollToTop";
 
 const App = () => (
   <AuthProvider>
@@ -26,13 +29,12 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/article/:id" element={<ArticleDetail />} />
             <Route path="/author/:authorName" element={<PublicAuthorProfile />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/signup" element={<SignUp />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/bookmarks" element={<BookmarksPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />
@@ -40,6 +42,10 @@ const App = () => (
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/author-dashboard" element={<AuthorDashboard />} />
             <Route path="/admin/create-article" element={<CreateArticle />} />
+            <Route path="/admin/credentials" element={<ManageCredentials />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/about" element={<AboutPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

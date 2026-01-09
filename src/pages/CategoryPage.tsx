@@ -63,19 +63,32 @@ const CategoryPage = () => {
     const filtered = currentCategory === "All" 
       ? articles 
       : articles.filter(article => {
+          // Escape special characters for regex
+          const escapedSearch = searchCategory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          // Use word boundary to prevent partial matches (e.g., "ai" in "entertainment", "ev" in "review")
+          const searchRegex = new RegExp(`\\b${escapedSearch}\\b`, 'i');
+
+          // Helper for strict matching
+          const isMatch = (text: string | undefined) => {
+            if (!text) return false;
+            const t = text.toLowerCase();
+            // Exact match
+            if (t === searchCategory) return true;
+            // Word boundary match
+            if (searchRegex.test(t)) return true;
+            // Singular/Plural check
+            if (t === searchCategory + 's' || searchCategory === t + 's') return true;
+            return false;
+          };
+
           // Check primary category
-          if (article.category.toLowerCase().includes(searchCategory)) return true;
+          if (isMatch(article.category)) return true;
           
           // Check sub category
-          if (article.subCategory?.toLowerCase().includes(searchCategory)) return true;
+          if (isMatch(article.subCategory)) return true;
           
           // Check tags
-          if (article.tags?.some(tag => {
-            const t = tag.toLowerCase();
-            const s = searchCategory;
-            // Match exact, singular/plural variants
-            return t === s || t === s + 's' || t + 's' === s;
-          })) return true;
+          if (article.tags?.some(tag => isMatch(tag))) return true;
 
           // Special handling for EV inclusion in Cars/Bikes pages
            if (article.subCategory === "EV") {

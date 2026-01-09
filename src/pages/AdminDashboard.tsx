@@ -31,27 +31,17 @@ import {
   EyeOff,
   LogOut,
   Settings,
-  PlusCircle
+  Shield,
+  PlusCircle,
+  Upload
 } from "lucide-react";
+import Papa from "papaparse";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { userService, User } from "@/services/userService";
-import { analyticsService, DailyViews, DeviceStats, UserGrowth, TopArticle } from "@/services/analyticsService";
+
 import { articleService, Article } from "@/services/articleService";
-import { 
-  BarChart as RechartsBarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
-} from "recharts";
+
 import { useAuth } from "@/contexts/AuthContext";
 
 const AdminDashboard = () => {
@@ -75,11 +65,120 @@ const AdminDashboard = () => {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Analytics State
-  const [dailyViews, setDailyViews] = useState<DailyViews[]>([]);
-  const [deviceStats, setDeviceStats] = useState<DeviceStats[]>([]);
-  const [userGrowth, setUserGrowth] = useState<UserGrowth[]>([]);
-  const [topArticles, setTopArticles] = useState<TopArticle[]>([]);
+
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportCSV = async () => {
+    setIsImporting(true);
+    
+    // Get current user name for author field
+    let currentAuthorName = 'Admin';
+    if (authUser?.user_metadata?.full_name) {
+        currentAuthorName = authUser.user_metadata.full_name;
+    } else {
+        const localAuth = localStorage.getItem("admin-auth");
+        if (localAuth) {
+            try {
+                const parsed = JSON.parse(localAuth);
+                if (parsed.user && parsed.user.name) {
+                    currentAuthorName = parsed.user.name;
+                }
+            } catch (e) {
+                console.error("Error parsing admin-auth", e);
+            }
+        }
+    }
+
+    try {
+      const response = await fetch('/Article%20data.csv');
+      if (!response.ok) throw new Error('Failed to fetch CSV file');
+      
+      const csvText = await response.text();
+      
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          let successCount = 0;
+          let failCount = 0;
+
+          for (const [index, row] of (results.data as any[]).entries()) {
+            try {
+              // Parse complex fields
+              let tags: string[] = [];
+              if (row.tags) {
+                if (row.tags.startsWith('{')) { // Postgres array format {tag1,tag2}
+                  tags = row.tags.replace(/^\{|\}$/g, '').split(',').map((t: string) => t.replace(/"/g, ''));
+                } else if (row.tags.startsWith('[')) { // JSON format
+                  try { tags = JSON.parse(row.tags); } catch { tags = [row.tags]; }
+                } else {
+                  tags = row.tags.split(',').map((t: string) => t.trim());
+                }
+              }
+
+              let localImages = {};
+              if (row.local_images) {
+                try { localImages = JSON.parse(row.local_images); } catch { console.warn('Failed to parse local_images'); }
+              }
+
+              const article: Article = {
+                id: String(Date.now() + index), // Generate unique ID for each article
+                title: row.title,
+                content: row.content,
+                excerpt: row.excerpt,
+                category: row.category,
+                subCategory: row.subcategory,
+                status: row.status as any || 'draft',
+                author: currentAuthorName,
+                date: row.created_at || new Date().toISOString(),
+                image: row.image_url,
+                views: parseInt(row.views || '0'),
+                likes: parseInt(row.likes || '0'),
+                readTime: row.read_time,
+                tags: tags,
+                localImages: localImages,
+                isTrending: row.is_trending === 'true' || row.is_trending === true,
+                priority: row.priority as any || 'medium',
+                comments: []
+              };
+
+              await articleService.saveArticle(article);
+              successCount++;
+            } catch (err) {
+              console.error('Failed to import article:', row.title, err);
+              failCount++;
+            }
+          }
+
+          setArticles(await articleService.getAllArticles());
+          setIsImporting(false);
+          
+          toast({
+            title: "Import Complete",
+            description: `Successfully imported ${successCount} articles. ${failCount > 0 ? `${failCount} failed.` : ''}`,
+            variant: failCount > 0 ? "destructive" : "default"
+          });
+        },
+        error: (error: any) => {
+          console.error('CSV Parse Error:', error);
+          setIsImporting(false);
+          toast({
+            title: "Import Failed",
+            description: "Failed to parse CSV file",
+            variant: "destructive"
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Import Error:', error);
+      setIsImporting(false);
+      toast({
+        title: "Import Failed",
+        description: "Failed to load CSV file",
+        variant: "destructive"
+      });
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -88,12 +187,6 @@ const AdminDashboard = () => {
       
       // Load articles
       setArticles(await articleService.getAllArticles());
-
-      // Load analytics
-      setDailyViews(await analyticsService.getDailyViews());
-      setDeviceStats(await analyticsService.getDeviceStats());
-      setUserGrowth(await analyticsService.getUserGrowth());
-      setTopArticles(await analyticsService.getTopArticles());
     };
 
     const checkAuthFunction = () => {
@@ -272,9 +365,9 @@ const AdminDashboard = () => {
               <p className="text-gray-600 dark:text-gray-400">Manage your content and users</p>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/credentials')}>
+                <Shield className="w-4 h-4 mr-2" />
+                Credentials
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
@@ -292,7 +385,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="articles">Articles</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -383,10 +475,16 @@ const AdminDashboard = () => {
                 <h2 className="text-xl font-semibold">Article Management</h2>
                 <p className="text-gray-600 dark:text-gray-400">Manage all articles, trending status, and priorities</p>
               </div>
-              <Button onClick={() => navigate('/admin/create-article')}>
-                <PlusCircle className="w-4 h-4 mr-2" />
-                Add Article
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleImportCSV} disabled={isImporting}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  {isImporting ? 'Importing...' : 'Import CSV'}
+                </Button>
+                <Button onClick={() => navigate('/admin/create-article')}>
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Add Article
+                </Button>
+              </div>
             </div>
 
             <Card>
@@ -604,7 +702,7 @@ const AdminDashboard = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Username</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Joined</TableHead>
@@ -622,7 +720,7 @@ const AdminDashboard = () => {
                             <span>{user.name}</span>
                           </div>
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.username}</TableCell>
                         <TableCell>
                           <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                             {user.role}
@@ -668,121 +766,6 @@ const AdminDashboard = () => {
                 </Table>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Daily Views Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daily Views (Last 7 Days)</CardTitle>
-                  <CardDescription>Traffic trends over the past week</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart data={dailyViews}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="views" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* User Growth Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Growth</CardTitle>
-                  <CardDescription>New user registrations by month</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={userGrowth}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="users" stroke="#10b981" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Device Stats Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Device Distribution</CardTitle>
-                  <CardDescription>Traffic breakdown by device type</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={deviceStats}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {deviceStats.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28'][index % 3]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex justify-center gap-4 mt-4">
-                    {deviceStats.map((entry, index) => (
-                      <div key={entry.name} className="flex items-center">
-                        <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: ['#0088FE', '#00C49F', '#FFBB28'][index % 3] }} />
-                        <span className="text-sm text-gray-600 dark:text-gray-400">{entry.name} ({entry.value}%)</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Top Articles List */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Performing Articles</CardTitle>
-                  <CardDescription>Most viewed content this month</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {topArticles.map((article, index) => (
-                      <div key={article.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-primary/10 text-primary font-bold rounded-full">
-                            {index + 1}
-                          </div>
-                          <div>
-                            <h4 className="font-medium line-clamp-1">{article.title}</h4>
-                            <div className="flex items-center text-sm text-gray-500 mt-1">
-                              <Eye className="w-3 h-3 mr-1" />
-                              <span className="mr-3">{article.views.toLocaleString()}</span>
-                              <Star className="w-3 h-3 mr-1" />
-                              <span>{article.likes}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
         </Tabs>
       </div>
