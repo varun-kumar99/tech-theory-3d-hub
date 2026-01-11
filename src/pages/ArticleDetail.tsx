@@ -1,6 +1,6 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Clock, Eye, Heart, Share2, MessageCircle, ThumbsUp, Instagram, Linkedin, Facebook, Globe, Send, Edit, Twitter, Trash2 } from "lucide-react";
+import { ArrowLeft, Clock, Eye, Heart, Share2, MessageCircle, ThumbsUp, Instagram, Linkedin, Facebook, Globe, Send, Edit, Twitter, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import Navbar from "@/components/Navbar";
@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthDialog } from "@/components/AuthDialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface RelatedArticle {
   id: string | number;
@@ -22,10 +23,104 @@ interface RelatedArticle {
   category: string;
 }
 
+const ArticleDetailSkeleton = () => {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="pt-6 flex-1">
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <div className="mb-8">
+                <Skeleton className="h-6 w-32 mb-4" /> {/* Back button */}
+                <Skeleton className="h-12 w-3/4 mb-6" /> {/* Title */}
+                <Skeleton className="h-6 w-full mb-6" /> {/* Excerpt line 1 */}
+                <Skeleton className="h-6 w-11/12 mb-6" /> {/* Excerpt line 2 */}
+                <div className="flex items-center justify-between border-y border-border py-4 mb-8">
+                  <div className="flex items-center space-x-6">
+                    <Skeleton className="h-4 w-24" /> {/* Author */}
+                    <Skeleton className="h-4 w-20" /> {/* Date */}
+                    <Skeleton className="h-4 w-20" /> {/* Read time */}
+                    <Skeleton className="h-4 w-20" /> {/* Views */}
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Skeleton className="h-8 w-16 rounded-md" /> {/* Like button */}
+                    <Skeleton className="h-8 w-16 rounded-md" /> {/* Bookmark button */}
+                    <Skeleton className="h-8 w-16 rounded-md" /> {/* Share button */}
+                  </div>
+                </div>
+                <Skeleton className="w-full h-[400px] rounded-lg mb-8" /> {/* Featured Image */}
+                <div className="space-y-4">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-11/12" />
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-10/12" />
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-9/12" />
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-1">
+              <div>
+                <Skeleton className="h-8 w-full mb-4" /> {/* Ad Unit */}
+                <div className="border border-border rounded-lg p-6 mb-8">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <Skeleton className="size-12 rounded-full" /> {/* Author Avatar */}
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-3/4" /> {/* Author Name */}
+                      <Skeleton className="h-4 w-1/2" /> {/* Author Title */}
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-full mb-2" /> {/* Author Bio line 1 */}
+                  <Skeleton className="h-4 w-11/12 mb-4" /> {/* Author Bio line 2 */}
+                  <div className="flex space-x-2">
+                    <Skeleton className="size-8 rounded-full" /> {/* Social Icon */}
+                    <Skeleton className="size-8 rounded-full" /> {/* Social Icon */}
+                    <Skeleton className="size-8 rounded-full" /> {/* Social Icon */}
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold mb-4">
+                  <Skeleton className="h-6 w-48" /> {/* Related Articles Title */}
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="size-20 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="size-20 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <Skeleton className="size-20 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
 const ArticleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [article, setArticle] = useState<Article | null>(null);
+  const location = useLocation();
+  const [article, setArticle] = useState<Article | null>(location.state?.article || null);
+  const [loading, setLoading] = useState(!location.state?.article);
   const [authorData, setAuthorData] = useState<User | null>(null);
   const [relatedArticles, setRelatedArticles] = useState<RelatedArticle[]>([]);
   const [isLiked, setIsLiked] = useState(false);
@@ -36,7 +131,13 @@ const ArticleDetail = () => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [authDialogMessage, setAuthDialogMessage] = useState({ title: "", description: "" });
   const commentsRef = useRef<HTMLDivElement>(null);
+  const articleRef = useRef<HTMLElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
   const [newComment, setNewComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [stickyTop, setStickyTop] = useState(84);
+  const lastScrollY = useRef(0);
+  const currentTop = useRef(84);
 
   const handleCommentSubmit = async () => {
     if (!newComment.trim()) return;
@@ -51,6 +152,7 @@ const ArticleDetail = () => {
       return;
     }
 
+    setIsSubmitting(true);
     const comment: Comment = {
       id: Date.now().toString(),
       author: user.name || "Anonymous",
@@ -59,14 +161,57 @@ const ArticleDetail = () => {
       avatar: user.avatar
     };
 
-    const updatedArticle = await articleService.addComment(article.id, comment);
-    if (updatedArticle) {
-      setArticle(updatedArticle);
+    try {
       setNewComment("");
+      setArticle(prev => {
+        if (!prev) return prev;
+        const existing = prev.comments ?? [];
+        return { ...prev, comments: [...existing, comment] };
+      });
+
+      const updatedArticle = await articleService.addComment(article.id, comment);
+
+      if (updatedArticle) {
+        setArticle(updatedArticle);
+      }
+
       toast({
         title: "Success",
         description: "Comment posted successfully.",
       });
+    } catch (error: unknown) {
+      console.error("Comment post failed:", error);
+      const err = error as { message?: unknown } | null;
+      const message = typeof err?.message === "string" ? err.message : "";
+      const isTimeout = message.endsWith("_timeout");
+
+      // Rollback optimistic update on ANY error (including timeout)
+      setArticle(prev => {
+        if (!prev) return prev;
+        const nextComments = (prev.comments ?? []).filter(c => c.id !== comment.id);
+        return { ...prev, comments: nextComments };
+      });
+      // Restore the comment content so user can retry
+      setNewComment(comment.content);
+
+      let errorDescription = "Could not post comment. Please try again.";
+      if (isTimeout) {
+        if (message.includes("profile_check")) errorDescription = "Timed out checking user profile.";
+        else if (message.includes("profile_upsert")) errorDescription = "Timed out creating user profile.";
+        else if (message.includes("comment_insert")) errorDescription = "Timed out posting comment to database.";
+        else errorDescription = "Network timed out. Please check your connection.";
+      } else if (message.startsWith("comment_insert:")) {
+        errorDescription = `Database rejected comment: ${message.split(':')[1]}`;
+      }
+
+      toast({
+        title: "Error",
+        description: errorDescription,
+        variant: "destructive"
+      });
+
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -82,178 +227,272 @@ const ArticleDetail = () => {
     commentsRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!article) return;
-    
-    // Optimistic update
-    const previousArticle = article;
-    const updatedComments = article.comments?.filter(c => c.id !== commentId);
-    setArticle({ ...article, comments: updatedComments });
-
-    const result = await articleService.deleteComment(article.id, commentId);
-    
-    if (result) {
-      setArticle(result);
-      toast({
-        title: "Success",
-        description: "Comment deleted successfully.",
-      });
-    } else {
-      // Revert if failed
-      setArticle(previousArticle);
-      toast({
-        title: "Error",
-        description: "Failed to delete comment.",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleLike = async () => {
     if (!article) return;
     
-    // Optimistic Update
-    const previousArticle = article;
-    const previousIsLiked = isLiked;
-    
-    const newIsLiked = !isLiked;
-    setIsLiked(newIsLiked);
-    setArticle({ ...article, likes: article.likes + (newIsLiked ? 1 : -1) }); // Update UI immediately
+    console.log("[ArticleDetail] Like button clicked", { currentLikes: article.likes, isLiked });
 
-    // Update article stats
+    // Optimistic update of count and state
+    const newIsLiked = !isLiked;
     const change = newIsLiked ? 1 : -1;
-    const updated = await articleService.updateLikes(article.id, change);
+    setIsLiked(newIsLiked);
+    setArticle(prev => prev ? { ...prev, likes: Math.max(0, prev.likes + change) } : null);
     
+    // Update article stats in DB
+    const updated = await articleService.updateLikes(article.id, change);
+
     if (updated) {
-       // Ensure we keep the local state if the server confirms
-       setArticle(updated); 
+      setArticle(updated);
     } else {
-        // Revert on failure
-        setArticle(previousArticle);
-        setIsLiked(previousIsLiked);
-        toast({
-            title: "Error",
-            description: "Failed to update like status.",
-            variant: "destructive"
-        });
-        return;
+      // Revert optimistic update if failed
+      setIsLiked(!newIsLiked);
+      setArticle(prev => prev ? { ...prev, likes: Math.max(0, prev.likes - change) } : null);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update likes. Please try again.",
+        variant: "destructive"
+      });
     }
 
-    // Persist user like state locally
-    const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
-    if (newIsLiked) {
-      if (!likedArticles.includes(String(article.id))) {
-        localStorage.setItem('liked_articles', JSON.stringify([...likedArticles, String(article.id)]));
+    // Persist user like state locally using a normalized id.
+    if (updated) {
+      const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
+      // Prefer numeric id when available (handles "15-article-title" cases)
+      const rawId = updated.id ?? article.id;
+      const numeric = typeof rawId === 'string' ? parseInt(rawId, 10) : rawId;
+      const storedId = !isNaN(Number(numeric)) ? String(numeric) : String(rawId);
+
+      if (newIsLiked) {
+        if (!likedArticles.includes(storedId)) {
+          localStorage.setItem('liked_articles', JSON.stringify([...likedArticles, storedId]));
+        }
+      } else {
+        // Remove any possible variants (numeric or raw) to avoid stale entries
+        const rawIdStr = String(rawId);
+        const numericStr = !isNaN(Number(numeric)) ? String(numeric) : null;
+        const filtered = likedArticles.filter((id: string) => id !== storedId && id !== rawIdStr && id !== numericStr);
+        localStorage.setItem('liked_articles', JSON.stringify(filtered));
       }
-    } else {
-      localStorage.setItem('liked_articles', JSON.stringify(likedArticles.filter((id: string) => id !== String(article.id))));
     }
   };
 
   useEffect(() => {
-    // Scroll to top when article changes
-    window.scrollTo(0, 0);
-
     const fetchArticleData = async () => {
       if (!id) return;
       
-      // Check if user already liked this article
-      const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
-      if (likedArticles.includes(String(id))) {
-        setIsLiked(true);
-      } else {
-        setIsLiked(false);
+      // Only show full page loader if we don't have article data from navigation state
+      if (!location.state?.article) {
+        setLoading(true);
       }
-
-      // Increment views if not already viewed in this session
-      const sessionKey = `viewed-article-${id}`;
-      let foundArticle = await articleService.getArticleById(id);
       
-      if (foundArticle && !sessionStorage.getItem(sessionKey)) {
-        const updated = await articleService.incrementViews(id);
-        if (updated) {
-          foundArticle = updated;
-          sessionStorage.setItem(sessionKey, 'true');
+      try {
+        // Quick session cache: show cached article immediately on refresh
+        const cacheKey = `cached_article_${id}`;
+        const cacheTTL = 5 * 60 * 1000; // 5 minutes
+        try {
+          const cachedRaw = sessionStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            if (parsed?.ts && (Date.now() - parsed.ts) < cacheTTL && parsed.article) {
+              setArticle(parsed.article as Article);
+              setLoading(false);
+              // continue to refresh in background
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to read article cache', e);
         }
-      }
 
-      if (foundArticle) {
-        setArticle(foundArticle);
+        // Check if user already liked this article.
+        // Route `id` may include a slug (e.g. "15-article-title"), so parse numeric id too.
+        const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
+        const routeNumeric = typeof id === 'string' ? parseInt(id, 10) : id;
+        const routeNumericStr = !isNaN(Number(routeNumeric)) ? String(routeNumeric) : null;
+        if (likedArticles.includes(String(id)) || (routeNumericStr && likedArticles.includes(routeNumericStr))) {
+          setIsLiked(true);
+        }
+
+        // Increment views if not already viewed in this session
+        const sessionKey = `viewed-article-${id}`;
         
-        // Fetch author data
-        const users = userService.getAllUsers();
-        const author = users.find(u => u.name === foundArticle!.author);
-        setAuthorData(author || null);
+        // Retry logic for fetching article
+        let foundArticle = null;
+        let attempts = 0;
+        const maxAttempts = 3;
         
-        // Get related articles (exclude current one)
-        const allArticles = await articleService.getPublishedArticles();
-      const otherArticles = allArticles.filter(a => String(a.id) !== String(id));
-      
-      // Filter by tags first, then category
-      let related = otherArticles.filter(a => 
-        a.tags?.some(tag => foundArticle.tags?.includes(tag))
-      );
+        while (attempts < maxAttempts && !foundArticle) {
+          attempts++;
+          try {
+            foundArticle = await articleService.getArticleById(id);
+            if (!foundArticle && attempts < maxAttempts) {
+              // Wait before retrying (exponential backoff: 300ms, 600ms, 1200ms)
+              await new Promise(resolve => setTimeout(resolve, 300 * attempts));
+            }
+          } catch (e) {
+             console.warn(`Attempt ${attempts} failed:`, e);
+             if (attempts < maxAttempts) {
+               await new Promise(resolve => setTimeout(resolve, 300 * attempts));
+             }
+          }
+        }
+        
+        if (foundArticle) {
+          // update cache with fresh article data
+          try {
+            const cacheKey = `cached_article_${id}`;
+            sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), article: foundArticle }));
+          } catch (e) {
+            console.warn('Failed to write article cache', e);
+          }
+          // Render the article immediately so the user sees content fast.
+          // We'll perform non-critical network work (increment views,
+          // author lookup, related articles) asynchronously in the
+          // background so the page feels snappy.
 
-      // If not enough tag matches, add category matches
-      if (related.length < 5) {
-        const categoryMatches = otherArticles.filter(a => 
-          a.category === foundArticle.category && !related.find(r => r.id === a.id)
-        );
-        related = [...related, ...categoryMatches];
+          // Ensure likes reflect local optimistic state
+          const foundIdStr = String(foundArticle.id);
+          if ((likedArticles.includes(String(id)) || (routeNumericStr && likedArticles.includes(routeNumericStr)) || likedArticles.includes(foundIdStr)) && foundArticle.likes === 0) {
+            foundArticle = { ...foundArticle, likes: 1 };
+          }
+
+          setArticle(foundArticle);
+
+          // Add to reading history
+          if (user && foundArticle.id) {
+            const sessionViewKey = `viewed_article_session_${foundArticle.id}`;
+            if (!sessionStorage.getItem(sessionViewKey)) {
+              addToReadingHistory(foundArticle.id);
+              sessionStorage.setItem(sessionViewKey, 'true');
+            }
+          }
+
+          // Fire-and-forget increment views (do not block rendering)
+          if (!sessionStorage.getItem(sessionKey)) {
+            articleService.incrementViews(id)
+              .then(updated => {
+                if (updated) {
+                  setArticle(prev => {
+                    const next = prev ? { ...prev, views: updated.views } : prev;
+                    try {
+                      sessionStorage.setItem(`cached_article_${id}`, JSON.stringify({ ts: Date.now(), article: next }));
+                    } catch (e) {
+                      // ignore cache write failures
+                    }
+                    return next;
+                  });
+                  sessionStorage.setItem(sessionKey, 'true');
+                }
+              })
+              .catch(e => console.warn('incrementViews failed', e));
+          }
+
+          // Parallel background tasks: author lookup and related articles
+          (async () => {
+            try {
+              const [author, allArticles] = await Promise.all([
+                userService.getUserById(foundArticle.authorId!), // Use authorId
+                articleService.getPublishedArticles()
+              ]);
+
+              setAuthorData(author || null);
+
+              const otherArticles = (allArticles || []).filter((a: Article) => String(a.id) !== String(id));
+
+              // Filter by tags first, then category
+              let related = otherArticles.filter((a: Article) =>
+                a.tags?.some(tag => foundArticle.tags?.includes(tag))
+              );
+
+              if (related.length < 5) {
+                const categoryMatches = otherArticles.filter(a =>
+                  a.category === foundArticle.category && !related.find(r => r.id === a.id)
+                );
+                related = [...related, ...categoryMatches];
+              }
+
+              if (related.length < 10) {
+                const remaining = otherArticles.filter(a => !related.find(r => r.id === a.id));
+                const shuffled = [...remaining].sort(() => 0.5 - Math.random());
+                related = [...related, ...shuffled.slice(0, 10 - related.length)];
+              }
+
+              const selected = related.map(a => ({
+                id: a.id,
+                title: a.title,
+                image: a.image || "",
+                date: a.date,
+                category: a.category
+              }));
+
+              setRelatedArticles(selected);
+            } catch (bgErr) {
+              console.warn('Background fetch for author/related failed', bgErr);
+            }
+          })();
+
+        } else {
+          // Article not found handling
+          console.log("Article not found with ID:", id);
+          setArticle(null); // Ensure it's null
+        }
+      } catch (error) {
+        console.error("Error fetching article:", error);
+      } finally {
+        setLoading(false);
       }
-
-      // If still not enough, add random articles to fill up
-      if (related.length < 10) {
-        const remaining = otherArticles.filter(a => !related.find(r => r.id === a.id));
-        const shuffled = [...remaining].sort(() => 0.5 - Math.random());
-        related = [...related, ...shuffled.slice(0, 10 - related.length)];
-      }
-
-      // Map to RelatedArticle format
-      const selected = related.map(a => ({
-        id: a.id,
-        title: a.title,
-        image: a.image || "",
-        date: a.date,
-        category: a.category
-      }));
-      
-      setRelatedArticles(selected);
-    } else {
-      // Article not found handling
-      console.log("Article not found with ID:", id);
-      setArticle(null); // Ensure it's null
-    }
-  };
-  fetchArticleData();
+    };
+    fetchArticleData();
   }, [id]);
 
   useEffect(() => {
+    lastScrollY.current = window.scrollY;
+    
     const handleScroll = () => {
-      const articleElement = document.getElementById('article-content');
-      if (articleElement) {
-        const scrollTop = window.scrollY;
-        const articleTop = articleElement.offsetTop;
-        const articleHeight = articleElement.offsetHeight;
+      const scrollY = window.scrollY;
+      const scrollDelta = scrollY - lastScrollY.current;
+      lastScrollY.current = scrollY;
+
+      // Update reading progress
+      if (articleRef.current) {
+        const element = articleRef.current;
+        const totalHeight = element.clientHeight;
         const windowHeight = window.innerHeight;
+        const elementTop = element.offsetTop;
         
-        const progress = Math.min(100, Math.max(0, 
-          ((scrollTop - articleTop + windowHeight) / articleHeight) * 100
-        ));
-        setReadingProgress(progress);
+        if (scrollY > elementTop) {
+          const progress = ((scrollY - elementTop) / (totalHeight - windowHeight + 400)) * 100;
+          setReadingProgress(Math.min(100, Math.max(0, progress)));
+        } else {
+          setReadingProgress(0);
+        }
+      }
+
+      // Sliding sticky sidebar logic
+      if (sidebarRef.current) {
+        const navbarHeight = 84;
+        const viewportHeight = window.innerHeight;
+        const sidebarHeight = sidebarRef.current.offsetHeight;
+        const padding = 20;
+
+        if (sidebarHeight <= viewportHeight - navbarHeight - padding) {
+          // If sidebar is shorter than viewport, keep it stuck to the top
+          currentTop.current = navbarHeight;
+        } else {
+          // If sidebar is taller than viewport, slide it
+          const minTop = viewportHeight - sidebarHeight - padding;
+          const maxTop = navbarHeight;
+          
+          let newTop = currentTop.current - scrollDelta;
+          newTop = Math.max(minTop, Math.min(maxTop, newTop));
+          currentTop.current = newTop;
+        }
+        setStickyTop(currentTop.current);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Add to reading history when article is loaded and user is available
-  useEffect(() => {
-    if (article && user) {
-      addToReadingHistory(Number(article.id));
-    }
-  }, [article?.id, user?.id, addToReadingHistory]);
+  }, [relatedArticles]); // Re-run when related articles change as height might change
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -267,6 +506,10 @@ const ArticleDetail = () => {
       // Show toast notification
     }
   };
+
+  if (loading) {
+    return <ArticleDetailSkeleton />;
+  }
 
   if (!article) {
     // If we've tried to load and it's still null, and we have an ID, it means not found
@@ -298,13 +541,13 @@ const ArticleDetail = () => {
         />
       </div>
 
-      <main className="pt-6">
+      <main className="pt-6 pb-12">
         {/* Article Header */}
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
-              <article>
+              <article ref={articleRef}>
                 <header className="mb-8">
                   <div className="mb-4 flex items-center gap-2">
                     <Button
@@ -468,7 +711,7 @@ const ArticleDetail = () => {
                         } else if (line.startsWith('### ')) {
                           elements.push(<h3 key={key} className="text-xl font-bold mt-4 mb-2">{line.replace('### ', '')}</h3>);
                         } else if (line.startsWith('• ') || line.startsWith('- ')) {
-                          elements.push(<li key={key} className="ml-4">{line.replace(/^(\•|-)\s/, '')}</li>);
+                          elements.push(<li key={key} className="ml-4">{line.replace(/^(•|-)\s/, '')}</li>);
                         } else if (line.startsWith('> ')) {
                           elements.push(<blockquote key={key} className="border-l-4 border-primary pl-4 italic">{line.replace('> ', '')}</blockquote>);
                         } else if (line.includes('![') && line.includes('](')) {
@@ -557,20 +800,16 @@ const ArticleDetail = () => {
                   <div className="mt-8 pt-8 border-t border-border">
                     <div className="flex flex-col md:flex-row gap-6 items-start bg-secondary/30 p-6 rounded-lg">
                       <div className="flex-shrink-0">
-                        <Link to={`/author/${encodeURIComponent(authorData.name)}`} className="block transition-opacity hover:opacity-80">
-                          <div className="w-16 h-16 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-2xl font-bold text-primary">
-                            {authorData.avatar ? (
-                              <img src={authorData.avatar} alt={authorData.name} className="w-full h-full object-cover" />
-                            ) : (
-                              authorData.name.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                        </Link>
+                        <div className="w-16 h-16 rounded-full bg-primary/10 overflow-hidden flex items-center justify-center text-2xl font-bold text-primary">
+                          {authorData.avatar ? (
+                            <img src={authorData.avatar} alt={authorData.name} className="w-full h-full object-cover" />
+                          ) : (
+                            authorData.name.charAt(0).toUpperCase()
+                          )}
+                        </div>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold mb-2 text-foreground">
-                          About <Link to={`/author/${encodeURIComponent(authorData.name)}`} className="hover:text-primary transition-colors hover:underline">{authorData.name}</Link>
-                        </h3>
+                        <h3 className="text-lg font-bold mb-2 text-foreground">About {authorData.name}</h3>
                         {authorData.bio && (
                           <p className="text-muted-foreground mb-4 leading-relaxed text-sm">
                             {authorData.bio}
@@ -614,7 +853,7 @@ const ArticleDetail = () => {
                   </h3>
 
                   {/* Comment Form */}
-                  <div className="mb-8">
+                  <div className="mb-8 bg-secondary/30 p-6 rounded-lg">
                     <div className="space-y-4">
                       <div className="flex items-start gap-4">
                         {user && (
@@ -631,9 +870,13 @@ const ArticleDetail = () => {
                             className="min-h-[100px] mb-2"
                           />
                           <div className="flex justify-end">
-                            <Button onClick={handleCommentSubmit} disabled={!newComment.trim()}>
-                              <Send className="w-4 h-4 mr-2" />
-                              Post Comment
+                            <Button onClick={handleCommentSubmit} disabled={!newComment.trim() || isSubmitting}>
+                              {isSubmitting ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4 mr-2" />
+                              )}
+                              {isSubmitting ? "Posting..." : "Post Comment"}
                             </Button>
                           </div>
                         </div>
@@ -645,30 +888,19 @@ const ArticleDetail = () => {
                   <div className="space-y-6">
                     {article.comments && article.comments.length > 0 ? (
                       article.comments.map((comment) => (
-                        <div key={comment.id} className="flex gap-4 group">
+                        <div key={comment.id} className="flex gap-4">
                           <Avatar>
                             <AvatarImage src={comment.avatar} />
                             <AvatarFallback>{comment.author.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
-                          <div className="flex-1 flex items-center justify-between gap-4">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
+                          <div className="flex-1">
+                            <div className="bg-background border border-border rounded-lg p-4">
+                              <div className="flex justify-between items-start mb-2">
                                 <span className="font-semibold text-sm">{comment.author}</span>
                                 <span className="text-xs text-muted-foreground">{comment.date}</span>
                               </div>
                               <p className="text-sm text-foreground">{comment.content}</p>
                             </div>
-                            
-                            {user && (user.name === comment.author || (comment.userId && user.id === comment.userId)) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-                                onClick={() => handleDeleteComment(comment.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
                           </div>
                         </div>
                       ))
@@ -679,22 +911,24 @@ const ArticleDetail = () => {
                     )}
                   </div>
                 </div>
-
-                {/* Bottom Ad Unit */}
-                <AdUnit slot="1234567890" className="mt-8" />
               </article>
             </div>
 
-            {/* Sidebar - Related Articles */}
             <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-6">
-                <div className="bg-background border border-border rounded-lg p-6">
+              <div 
+                ref={sidebarRef}
+                className="sticky space-y-6" 
+                style={{ top: `${stickyTop}px` }}
+              >
+                <div 
+                  className="bg-background border border-border rounded-lg p-6" 
+                >
                   <div className="mb-6">
                     <h2 className="inline-block text-lg font-bold text-background bg-foreground px-3 py-2 text-sm uppercase tracking-wide rounded">
                       RELATED POSTS
                     </h2>
                   </div>
-                  
+                
                   <div className="divide-y divide-border">
                     {relatedArticles.map((relatedArticle) => (
                       <article 
@@ -749,9 +983,6 @@ const ArticleDetail = () => {
           </div>
         </div>
       </main>
-      
-      {/* Spacer before footer */}
-      <div className="py-16"></div>
       
       <Footer />
       

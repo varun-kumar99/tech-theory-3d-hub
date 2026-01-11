@@ -58,22 +58,26 @@ const AuthorDashboard = () => {
         const authData = JSON.parse(auth);
         if (authData?.user?.email) {
           // We need to fetch the latest user data from userService to ensure we have the correct ID and details
-          const allUsers = userService.getAllUsers();
-          // Try to find by email which is unique
-          const user = allUsers.find(u => u.email === authData.user.email);
-          if (user) {
-            setCurrentUser(user);
-          } else {
-             // Fallback to auth data if user not found in DB (e.g. demo user)
-             setCurrentUser({
-                 id: 'demo',
-                 name: authData.user.name || 'Author',
-                 email: authData.user.email,
-                 role: authData.role || 'author',
-                 status: 'active',
-                 joinedDate: new Date().toISOString()
-             });
-          }
+          const fetchUser = async () => {
+             const allUsers = await userService.getAllUsers();
+             // Try to find by email which is unique
+             const user = allUsers.find(u => u.email === authData.user.email);
+             if (user) {
+               setCurrentUser(user);
+             } else {
+                // Fallback to auth data if user not found in DB (e.g. demo user)
+                setCurrentUser({
+                    id: 'demo',
+                    name: authData.user.name || 'Author',
+                    username: authData.user.username || authData.user.email.split('@')[0],
+                    email: authData.user.email,
+                    role: authData.role || 'author',
+                    status: 'active',
+                    joinedDate: new Date().toISOString()
+                });
+             }
+          };
+          fetchUser();
         }
       } catch (error) {
         console.error("Error parsing auth data:", error);
@@ -83,9 +87,13 @@ const AuthorDashboard = () => {
 
   useEffect(() => {
     const fetchArticles = async () => {
-      if (currentUser?.name) {
+      if (currentUser) {
         const allArticles = await articleService.getAllArticles();
-        const myArticles = allArticles.filter(article => article.author === currentUser.name);
+        const myArticles = allArticles.filter(article => {
+          const isByUsername = article.authorId && currentUser.username && article.authorId === currentUser.username;
+          const isByName = article.author === currentUser.name;
+          return isByUsername || isByName;
+        });
         setUserArticles(myArticles);
       }
     };
@@ -247,37 +255,50 @@ const AuthorDashboard = () => {
       return;
     }
 
-    const article: Article = {
-      id: Date.now().toString(),
-      title: newArticle.title,
-      category: newArticle.category,
-      subCategory: newArticle.subCategory,
-      content: newArticle.content,
-      status: newArticle.status,
-      views: 0,
-      likes: 0,
-      date: newArticle.status === 'published' ? new Date().toISOString().split('T')[0] : "", // Changed from publishDate to date
-      author: currentUser?.name || "Author",
-      excerpt: newArticle.excerpt || articleService.generateExcerpt(newArticle.content),
-      readTime: articleService.calculateReadTime(newArticle.content),
-      image: newArticle.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&h=400&fit=crop", // Use provided image or default
-      localImages: newArticle.localImages
-    };
+    try {
+      const article: Article = {
+        id: Date.now().toString(),
+        title: newArticle.title,
+        category: newArticle.category,
+        subCategory: newArticle.subCategory,
+        content: newArticle.content,
+        status: newArticle.status,
+        views: 0,
+        likes: 0,
+        date: newArticle.status === 'published' ? new Date().toISOString().split('T')[0] : "",
+        author: currentUser?.name || "Author",
+        excerpt: newArticle.excerpt || articleService.generateExcerpt(newArticle.content),
+        readTime: articleService.calculateReadTime(newArticle.content),
+        image: newArticle.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&h=400&fit=crop",
+        localImages: newArticle.localImages
+      };
 
-    await articleService.saveArticle(article);
-    if (currentUser?.name) {
-      const allArticles = await articleService.getAllArticles();
-      const myArticles = allArticles.filter(a => a.author === currentUser.name);
-      setUserArticles(myArticles);
+      await articleService.saveArticle(article);
+      if (currentUser) {
+        const allArticles = await articleService.getAllArticles();
+        const myArticles = allArticles.filter(a => {
+          const isByUsername = a.authorId && currentUser.username && a.authorId === currentUser.username;
+          const isByName = a.author === currentUser.name;
+          return isByUsername || isByName;
+        });
+        setUserArticles(myArticles);
+      }
+      
+      setNewArticle({ title: "", category: "", subCategory: "", content: "", status: "draft", image: "", localImages: {} });
+      setIsAddingArticle(false);
+      
+      toast({
+        title: "Success",
+        description: "Article saved successfully"
+      });
+    } catch (error: any) {
+       console.error("Save error:", error);
+       toast({
+         title: "Save Failed",
+         description: error.message || "There was an error saving your article. Please try again.",
+         variant: "destructive"
+       });
     }
-    
-    setNewArticle({ title: "", category: "", subCategory: "", content: "", status: "draft", image: "", localImages: {} });
-    setIsAddingArticle(false);
-    
-    toast({
-      title: "Success",
-      description: "Article saved successfully"
-    });
   };
 
   const handleEditArticle = (article: Article) => {
@@ -309,39 +330,56 @@ const AuthorDashboard = () => {
       localImages: newArticle.localImages
     };
 
-    await articleService.saveArticle(updatedArticle);
-    if (currentUser?.name) {
-      const allArticles = await articleService.getAllArticles();
-      const myArticles = allArticles.filter(a => a.author === currentUser.name);
-      setUserArticles(myArticles);
+    try {
+      await articleService.saveArticle(updatedArticle);
+      if (currentUser) {
+        const allArticles = await articleService.getAllArticles();
+        const myArticles = allArticles.filter(a => {
+          const isByUsername = a.authorId && currentUser.username && a.authorId === currentUser.username;
+          const isByName = a.author === currentUser.name;
+          return isByUsername || isByName;
+        });
+        setUserArticles(myArticles);
+      }
+      
+      setEditingArticle(null);
+      setNewArticle({ 
+        title: "", 
+        category: "", 
+        subCategory: "", 
+        content: "", 
+        excerpt: "",
+        status: "draft", 
+        image: "", 
+        localImages: {},
+        isTrending: false,
+        priority: 'medium'
+      });
+      setIsAddingArticle(false);
+      
+      toast({
+        title: "Success",
+        description: "Article updated successfully"
+      });
+    } catch (error: any) {
+      console.error("Update error:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "There was an error updating your article. Please try again.",
+        variant: "destructive"
+      });
     }
-    
-    setEditingArticle(null);
-    setNewArticle({ 
-      title: "", 
-      category: "", 
-      subCategory: "", 
-      content: "", 
-      excerpt: "",
-      status: "draft", 
-      image: "", 
-      localImages: {},
-      isTrending: false,
-      priority: 'medium'
-    });
-    setIsAddingArticle(false);
-    
-    toast({
-      title: "Success",
-      description: "Article updated successfully"
-    });
   };
 
   const handleDeleteArticle = async (id: string | number) => {
     await articleService.deleteArticle(id);
-    if (currentUser?.name) {
+    if (currentUser) {
       const allArticles = await articleService.getAllArticles();
-      const myArticles = allArticles.filter(a => a.author === currentUser.name);
+      const myArticles = allArticles.filter(a => {
+        const isByUsername = a.authorId && currentUser.username && a.authorId === currentUser.username;
+        const isByName = a.author === currentUser.name;
+        return isByUsername || isByName;
+      });
       setUserArticles(myArticles);
     }
     

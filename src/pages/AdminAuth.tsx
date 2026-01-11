@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { userService } from "@/services/userService";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const AdminAuth = () => {
   console.log("AdminAuth rendering");
@@ -29,6 +30,49 @@ const AdminAuth = () => {
   const [showAuthorPassword, setShowAuthorPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleSupabaseLogin = async (username: string, password: string, role: 'admin' | 'author') => {
+    try {
+      // 1. Resolve email from username
+      // Supabase Auth requires email. We try to find the user in profiles first.
+      const users = await userService.getAllUsers();
+      const userProfile = users.find(u => u.username === username || u.email === username);
+
+      if (!userProfile) {
+        throw new Error("User not found");
+      }
+
+      // 2. Authenticate with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: userProfile.email,
+        password: password
+      });
+
+      if (error) throw error;
+
+      if (!data.user) throw new Error("Authentication failed");
+
+      // 3. Check Role
+      if (userProfile.role !== role) {
+         // Allow admins to login as authors if needed, but strictly enforce admin role
+         if (role === 'admin' && userProfile.role !== 'admin') {
+             throw new Error(`Access denied. This account does not have admin privileges.`);
+         }
+      }
+
+      // 4. Set Legacy Local Storage (for app compatibility)
+      localStorage.setItem("admin-auth", JSON.stringify({
+        role: role, // Use the requested role if valid, or user's role? Usually user.role
+        user: { name: userProfile.name, email: userProfile.email }
+      }));
+
+      return userProfile;
+
+    } catch (error: any) {
+      console.error("Supabase Login Error:", error);
+      throw error;
+    }
+  };
+
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -47,9 +91,30 @@ const AdminAuth = () => {
     setIsLoading(true);
     
     try {
-      // Check against stored users
-      const users = userService.getAllUsers();
-      const adminUser = users.find(u => 
+      if (isSupabaseConfigured()) {
+        try {
+          const user = await handleSupabaseLogin(username, password, 'admin');
+          toast({
+            title: "Success",
+            description: `Welcome Admin ${user.name}!`
+          });
+          navigate("/admin/dashboard");
+          return;
+        } catch (supabaseError: any) {
+          console.warn("Supabase login failed, trying local storage fallback:", supabaseError.message);
+          // If Supabase login fails (e.g. user not migrated yet), fall through to local storage check
+          // This allows admins to login and run the migration
+        }
+      }
+      
+      // Local Storage Login (Fallback or Primary)
+      const users = await userService.getAllUsers().catch(() => userService.getLocalUsers()); // Handle case where getAllUsers fails on Supabase
+      
+      // If Supabase is configured but returned no users, explicitly check local storage
+      const localUsers = isSupabaseConfigured() ? userService.getLocalUsers() : [];
+      const allUsersToCheck = [...(Array.isArray(users) ? users : []), ...localUsers];
+      
+      const adminUser = allUsersToCheck.find(u => 
         u.username === username && 
         u.password === password && 
         u.role === 'admin' &&
@@ -61,33 +126,24 @@ const AdminAuth = () => {
           role: "admin",
           user: { name: adminUser.name, email: adminUser.email }
         }));
+        
+        const description = isSupabaseConfigured() 
+          ? `Welcome ${adminUser.name}! Please migrate your data in Credential Manager.`
+          : `Welcome ${adminUser.name}!`;
+
         toast({
           title: "Success",
-          description: `Welcome ${adminUser.name}!`
+          description: description
         });
         navigate("/admin/dashboard");
       } else {
-        // Check if user exists but with wrong role
-        const wrongRoleUser = users.find(u => u.username === username && u.password === password);
-        if (wrongRoleUser) {
-           toast({
-            title: "Error",
-            description: `This is an ${wrongRoleUser.role} account. Please use the ${wrongRoleUser.role === 'author' ? 'Author' : 'Admin'} tab.`,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "Invalid admin credentials",
-            variant: "destructive"
-          });
-        }
+         throw new Error("Invalid admin credentials");
       }
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
         title: "Error",
-        description: `Login failed: ${error.message || "Unknown error"}`,
+        description: error.message || "Invalid credentials",
         variant: "destructive"
       });
     } finally {
@@ -113,11 +169,26 @@ const AdminAuth = () => {
     setIsLoading(true);
     
     try {
-      // Check against stored users
-      const users = userService.getAllUsers();
-      console.log("Checking credentials against users:", users.length);
-      
-      const authorUser = users.find(u => 
+      if (isSupabaseConfigured()) {
+        try {
+          const user = await handleSupabaseLogin(username, password, 'author');
+          toast({
+            title: "Success",
+            description: `Welcome Author ${user.name}!`
+          });
+          navigate("/admin/author-dashboard");
+          return;
+        } catch (supabaseError: any) {
+           console.warn("Supabase login failed, trying local storage fallback:", supabaseError.message);
+        }
+      }
+
+      // Legacy/Fallback Local Storage Login
+      const users = await userService.getAllUsers().catch(() => userService.getLocalUsers());
+      const localUsers = isSupabaseConfigured() ? userService.getLocalUsers() : [];
+      const allUsersToCheck = [...(Array.isArray(users) ? users : []), ...localUsers];
+
+      const authorUser = allUsersToCheck.find(u => 
         u.username === username && 
         u.password === password && 
         u.role === 'author' &&
@@ -129,43 +200,24 @@ const AdminAuth = () => {
           role: "author",
           user: { name: authorUser.name, email: authorUser.email }
         }));
+        
+        const description = isSupabaseConfigured() 
+          ? `Welcome ${authorUser.name}! Please contact admin to migrate your data.`
+          : `Welcome ${authorUser.name}!`;
+
         toast({
           title: "Success",
-          description: `Welcome ${authorUser.name}!`
+          description: description
         });
         navigate("/admin/author-dashboard");
       } else {
-          // Check if user exists but with wrong role
-         const wrongRoleUser = users.find(u => u.username === username && u.password === password);
-         if (wrongRoleUser) {
-            toast({
-             title: "Error",
-             description: `This is an ${wrongRoleUser.role} account. Please use the ${wrongRoleUser.role === 'admin' ? 'Admin' : 'Author'} tab.`,
-             variant: "destructive"
-           });
-         } else {
-           // Fallback debug - check if username exists but password wrong
-           const userExists = users.find(u => u.username === username);
-           if (userExists) {
-             toast({
-               title: "Error",
-               description: "Invalid password",
-               variant: "destructive"
-             });
-           } else {
-             toast({
-               title: "Error",
-               description: "User not found",
-               variant: "destructive"
-             });
-           }
-         }
+          throw new Error("Invalid author credentials");
       }
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
         title: "Error",
-        description: `Login failed: ${error.message || "Unknown error"}`,
+        description: error.message || "Invalid credentials",
         variant: "destructive"
       });
     } finally {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Rss, Bookmark, MessageSquare, TrendingUp, ArrowLeft, Loader2 } from "lucide-react";
+import { Rss, Bookmark, MessageSquare, TrendingUp, ArrowLeft, Loader2, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +8,21 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { articleService, Article } from "@/services/articleService";
 import { Link } from "react-router-dom";
+import { useLikes } from "@/hooks/useLikes";
+import { cn } from "@/lib/utils";
 
 const CategoryPage = () => {
+  const { toggleLike, isArticleLiked } = useLikes();
   const { category } = useParams();
   const navigate = useNavigate();
   const [articles, setArticles] = useState<Article[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleToggleLike = (e: React.MouseEvent, article: Article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLike(article);
+  };
 
   const categoryMap: Record<string, string> = {
     "ai": "AI",
@@ -151,8 +160,43 @@ const CategoryPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="pt-8 pb-16 flex justify-center items-center h-[60vh]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <main className="pt-8 pb-16">
+          <div className="container mx-auto px-4">
+            <div className="mb-8 border-b border-border/40 pb-4">
+              <div className="h-4 w-12 bg-muted animate-pulse rounded mb-2"></div>
+              <div className="h-8 w-48 bg-muted animate-pulse rounded"></div>
+            </div>
+            
+            <div className="space-y-12">
+              {/* Featured Grid Skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="col-span-1 md:col-span-2 aspect-video md:aspect-[16/9] bg-muted animate-pulse rounded-xl"></div>
+                <div className="col-span-1 md:col-span-2 aspect-video md:aspect-[16/9] bg-muted animate-pulse rounded-xl"></div>
+                <div className="col-span-1 aspect-video bg-muted animate-pulse rounded-xl"></div>
+                <div className="col-span-1 aspect-video bg-muted animate-pulse rounded-xl"></div>
+                <div className="col-span-1 aspect-video bg-muted animate-pulse rounded-xl"></div>
+                <div className="col-span-1 aspect-video bg-muted animate-pulse rounded-xl"></div>
+              </div>
+
+              {/* Latest Section Skeleton */}
+              <div className="space-y-6 max-w-5xl">
+                <div className="h-6 w-24 bg-muted animate-pulse rounded mb-6"></div>
+                <div className="grid gap-6">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex flex-col sm:flex-row gap-6 p-2">
+                      <div className="sm:w-64 aspect-video bg-muted animate-pulse rounded-lg"></div>
+                      <div className="flex-1 space-y-3 py-1">
+                        <div className="h-4 w-24 bg-muted animate-pulse rounded"></div>
+                        <div className="h-6 w-full bg-muted animate-pulse rounded"></div>
+                        <div className="h-4 w-3/4 bg-muted animate-pulse rounded"></div>
+                        <div className="h-4 w-32 bg-muted animate-pulse rounded"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </main>
         <Footer />
       </div>
@@ -199,6 +243,25 @@ const CategoryPage = () => {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                    
+                    {/* Like Button */}
+                    <div className="absolute top-3 right-3 z-20">
+                      <button 
+                        className={cn(
+                          "p-2.5 backdrop-blur-md rounded-full transition-all duration-300",
+                          isArticleLiked(article) 
+                            ? "bg-red-500 text-white shadow-lg shadow-red-500/30" 
+                            : "bg-black/40 text-white/90 hover:bg-black/60"
+                        )}
+                        onClick={(e) => handleToggleLike(e, article)}
+                      >
+                        <Heart className={cn(
+                          "w-4 h-4",
+                          isArticleLiked(article) && "fill-current"
+                        )} />
+                      </button>
+                    </div>
+
                     <div className="absolute bottom-0 left-0 p-6 w-full">
                       {article.subCategory && (
                         <Badge variant="secondary" className="mb-3 bg-blue-600 hover:bg-blue-700 text-white border-none">
@@ -225,6 +288,25 @@ const CategoryPage = () => {
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    
+                    {/* Like Button */}
+                    <div className="absolute top-2 right-2 z-20">
+                      <button 
+                        className={cn(
+                          "p-1.5 backdrop-blur-md rounded-full transition-all duration-300",
+                          isArticleLiked(article) 
+                            ? "bg-red-500 text-white" 
+                            : "bg-black/30 text-white/90 hover:bg-black/50"
+                        )}
+                        onClick={(e) => handleToggleLike(e, article)}
+                      >
+                        <Heart className={cn(
+                          "w-3.5 h-3.5",
+                          isArticleLiked(article) && "fill-current"
+                        )} />
+                      </button>
+                    </div>
+
                     <div className="absolute bottom-0 left-0 p-4 w-full">
                       <h3 className="text-sm font-bold text-white leading-snug group-hover:underline decoration-1 underline-offset-2 line-clamp-3">
                         {article.title}
@@ -248,12 +330,29 @@ const CategoryPage = () => {
                       <Link key={article.id} to={`/article/${article.id}`}>
                         <Card className="bg-transparent border-none shadow-none group hover:bg-accent/5 transition-colors p-2 -mx-2 rounded-lg">
                           <div className="flex flex-col sm:flex-row gap-6">
-                            <div className="sm:w-64 aspect-video flex-shrink-0 overflow-hidden rounded-lg">
+                            <div className="sm:w-64 aspect-video flex-shrink-0 overflow-hidden rounded-lg relative">
                               <img
                                 src={article.image}
                                 alt={article.title}
                                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                               />
+                              {/* Like Button */}
+                              <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <button 
+                                  className={cn(
+                                    "p-1.5 backdrop-blur-md rounded-full transition-all duration-300",
+                                    isArticleLiked(article) 
+                                      ? "bg-red-500 text-white" 
+                                      : "bg-black/40 text-white/90 hover:bg-black/60"
+                                  )}
+                                  onClick={(e) => handleToggleLike(e, article)}
+                                >
+                                  <Heart className={cn(
+                                    "w-3.5 h-3.5",
+                                    isArticleLiked(article) && "fill-current"
+                                  )} />
+                                </button>
+                              </div>
                             </div>
                             <div className="flex-1 min-w-0 py-1">
                               <div className="text-xs text-muted-foreground mb-2">

@@ -19,6 +19,7 @@ export interface Article {
   subCategory?: string;
   status: 'published' | 'draft' | 'pending';
   author: string;
+  authorId?: string;
   authorEmail?: string;
   date: string;
   image?: string;
@@ -34,7 +35,41 @@ export interface Article {
 
 const STORAGE_KEY = 'tech_theory_articles';
 
-const INITIAL_ARTICLES: Article[] = [];
+// Helper for Supabase timeouts
+const timeout = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), ms));
+
+const INITIAL_ARTICLES: Article[] = [
+  {
+    id: '1',
+    title: 'Getting Started with React and Supabase',
+    content: '# Getting Started with React and Supabase\n\nLearn how to build powerful applications using React and Supabase. This guide covers the basics of authentication, database management, and real-time updates.',
+    excerpt: 'Learn how to build powerful applications using React and Supabase.',
+    category: 'Development',
+    status: 'published',
+    author: 'Tech Theory',
+    date: new Date().toISOString().split('T')[0],
+    image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&auto=format&fit=crop&q=60',
+    views: 120,
+    likes: 45,
+    readTime: '5 min read',
+    priority: 'high'
+  },
+  {
+    id: '2',
+    title: 'Modern Web Design Trends in 2024',
+    content: '# Modern Web Design Trends in 2024\n\nExplore the latest trends in web design, from minimalist interfaces to immersive 3D experiences. Discover how to create engaging user experiences.',
+    excerpt: 'Explore the latest trends in web design, from minimalist interfaces to immersive 3D experiences.',
+    category: 'Design',
+    status: 'published',
+    author: 'Tech Theory',
+    date: new Date().toISOString().split('T')[0],
+    image: 'https://images.unsplash.com/photo-1558655146-d09347e92766?w=800&auto=format&fit=crop&q=60',
+    views: 85,
+    likes: 32,
+    readTime: '4 min read',
+    priority: 'medium'
+  }
+];
 
 const mapSupabaseToArticle = (data: any): Article => ({
   id: data.id,
@@ -45,6 +80,7 @@ const mapSupabaseToArticle = (data: any): Article => ({
   subCategory: data.subcategory,
   status: (data.status as any) || 'draft',
   author: data.author_display_name || data.author?.full_name || 'Unknown',
+  authorId: data.author_id,
   authorEmail: '', 
   date: new Date(data.created_at).toLocaleDateString(),
   image: data.image_url,
@@ -142,42 +178,85 @@ export const articleService = {
   },
 
   getAllArticles: async (): Promise<Article[]> => {
+    let supabaseArticles: Article[] = [];
+    
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase
-        .from('articles')
-        .select('*, author:profiles(full_name, avatar_url, username)')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error("Error fetching articles:", error);
-        return [];
+      try {
+        const fetchPromise = supabase
+          .from('articles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        const { data, error } = (await Promise.race([fetchPromise, timeout(15000)])) as any;
+        
+        if (error) {
+          console.error("Error fetching articles:", error);
+        } else if (data) {
+          supabaseArticles = data.map(mapSupabaseToArticle);
+          
+          if (data.length === 0) {
+            console.log("No articles found in Supabase. Seeding initial data...");
+            try {
+              await Promise.race([articleService.seedInitialArticles(), timeout(10000)]);
+              // Fetch again after seeding
+              const { data: newData } = (await Promise.race([
+                supabase.from('articles').select('*').order('created_at', { ascending: false }),
+                timeout(5000)
+              ])) as any;
+              if (newData) supabaseArticles = newData.map(mapSupabaseToArticle);
+            } catch (seedErr) {
+              console.warn("Seeding or re-fetch failed", seedErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Exception in getAllArticles Supabase fetch:", err);
       }
-
-      // If no articles exist, seed the database with initial articles
-      if (data.length === 0) {
-        console.log("No articles found in Supabase. Seeding initial data...");
-        await articleService.seedInitialArticles();
-        // Re-fetch after seeding
-        return articleService.getAllArticles();
-      }
-
-      return data.map(mapSupabaseToArticle);
     }
 
-    // Fallback
-    return new Promise((resolve) => {
+    // Get local articles. Only fall back to INITIAL_ARTICLES when Supabase
+    // is NOT configured (i.e., running locally / DEV). When Supabase is
+    // configured we avoid showing built-in sample articles as a fallback.
+    let localArticles: Article[] = [];
+    try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (!stored) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ARTICLES));
-        resolve(INITIAL_ARTICLES);
+      if (stored) {
+        localArticles = JSON.parse(stored);
       } else {
-        resolve(JSON.parse(stored));
+        localArticles = isSupabaseConfigured() ? [] : INITIAL_ARTICLES;
       }
-    });
+    } catch (e) {
+      console.error("Failed to parse local storage articles", e);
+      localArticles = isSupabaseConfigured() ? [] : INITIAL_ARTICLES;
+    }
+
+    // If Supabase is not configured or failed, return local articles
+    if (!isSupabaseConfigured() || supabaseArticles.length === 0) {
+      return localArticles;
+    }
+
+    // Merge Supabase and Local articles, avoiding duplicates by title
+    const combined = [...supabaseArticles];
+    const existingTitles = new Set(supabaseArticles.map(a => a.title.toLowerCase().trim()));
+
+    for (const local of localArticles) {
+      const normalizedTitle = local.title.toLowerCase().trim();
+      if (!existingTitles.has(normalizedTitle)) {
+        combined.push(local);
+      }
+    }
+
+    return combined;
   },
 
   seedInitialArticles: async (): Promise<void> => {
+    // Only auto-seed initial articles during development to avoid
+    // populating production databases with sample content.
     if (!isSupabaseConfigured()) return;
+    if (!import.meta.env.DEV) {
+      console.log("Skipping seedInitialArticles outside DEV environment.");
+      return;
+    }
 
     try {
       // Try to get the current user to assign as author
@@ -252,43 +331,119 @@ export const articleService = {
 
 
   getPublishedArticles: async (): Promise<Article[]> => {
+    console.log("getPublishedArticles started, Supabase configured:", isSupabaseConfigured());
+
+    // Fast-path: return session-cached published articles immediately if available.
+    // Also trigger a background refresh to get the latest data and notify listeners.
+    try {
+      const cacheKey = 'cached_published_articles_v1';
+      const cachedRaw = sessionStorage.getItem(cacheKey);
+      const cacheTTL = 2 * 60 * 1000; // 2 minutes
+      if (cachedRaw) {
+        const parsed = JSON.parse(cachedRaw);
+        if (parsed?.ts && (Date.now() - parsed.ts) < cacheTTL && Array.isArray(parsed.articles)) {
+          // Kick off background refresh but don't await it here. Call
+          // getAllArticles() (which does not depend on this cached path)
+          // and filter published articles, then update cache and notify.
+          (async () => {
+            try {
+              const all = await articleService.getAllArticles().catch(() => null);
+              const fresh = (Array.isArray(all) ? all.filter((a: Article) => a.status === 'published') : null) as Article[] | null;
+              if (fresh && Array.isArray(fresh)) {
+                sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), articles: fresh }));
+                try {
+                  window.dispatchEvent(new CustomEvent('articles:updated', { detail: fresh }));
+                } catch (e) {
+                  // ignore dispatch errors
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
+          })();
+          return parsed.articles as Article[];
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to read session cache for published articles', e);
+    }
     if (isSupabaseConfigured()) {
-      // First check if we need to seed
-      const { count } = await supabase
-        .from('articles')
-        .select('*', { count: 'exact', head: true });
+      try {
+        // First check if we need to seed
+        console.log("Checking article count...");
         
-      if (count === 0) {
-        console.log("Database empty. Seeding from local storage/initial data...");
-        await articleService.seedInitialArticles();
-        
-        // Check again if seeding succeeded
-        const { count: newCount } = await supabase
+        // Wrap the Supabase call in a timeout
+        const countPromise = supabase
           .from('articles')
           .select('*', { count: 'exact', head: true });
           
-        if (newCount === 0) {
-          console.warn("Seeding failed (likely due to RLS). Falling back to local data.");
-          // Fallback to local storage or initial data
-          const stored = localStorage.getItem(STORAGE_KEY);
-          const localArticles: Article[] = stored ? JSON.parse(stored) : INITIAL_ARTICLES;
+        const { count, error: countError } = (await Promise.race([countPromise, timeout(15000)])) as any;
+          
+        if (countError) {
+          console.error("Error checking article count:", countError);
+          throw countError;
+        }
+
+        console.log("Article count:", count);
+        if (count === 0) {
+          console.log("Database empty. Seeding from local storage/initial data...");
+          await Promise.race([articleService.seedInitialArticles(), timeout(15000)]);
+          
+          // Check again if seeding succeeded
+          const { count: newCount } = (await Promise.race([
+            supabase.from('articles').select('*', { count: 'exact', head: true }),
+            timeout(15000)
+          ])) as any;
+            
+          if (newCount === 0) {
+            console.warn("Seeding failed (likely due to RLS). Falling back to local data.");
+                // Fallback to local storage or initial data. When Supabase is
+                // configured we prefer an empty result over showing built-in
+                // sample articles so the UI reflects the DB state.
+                const stored = localStorage.getItem(STORAGE_KEY);
+                const localArticles: Article[] = stored ? JSON.parse(stored) : (isSupabaseConfigured() ? [] : INITIAL_ARTICLES);
+                return localArticles.filter(a => a.status === 'published');
+          }
+        }
+
+        console.log("Fetching published articles from Supabase...");
+        const fetchPromise = supabase
+          .from('articles')
+          .select('*')
+          .eq('status', 'published')
+          .order('created_at', { ascending: false });
+
+        const { data, error } = (await Promise.race([fetchPromise, timeout(15000)])) as any;
+        
+        if (error) {
+          console.error("Error fetching published articles:", error);
+          return [];
+        }
+        console.log("Successfully fetched", data?.length, "articles from Supabase");
+        const mapped = data.map(mapSupabaseToArticle);
+        try {
+          const cacheKey = 'cached_published_articles_v1';
+          sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), articles: mapped }));
+          try { window.dispatchEvent(new CustomEvent('articles:updated', { detail: mapped })); } catch (e) { }
+        } catch (e) {
+          // ignore cache failures
+        }
+        return mapped;
+      } catch (err) {
+        console.error("Critical error or timeout in getPublishedArticles:", err);
+        // Fallback to local data on any error to prevent hanging
+        const stored = localStorage.getItem(STORAGE_KEY);
+        try {
+          const localArticles: Article[] = stored ? JSON.parse(stored) : (isSupabaseConfigured() ? [] : INITIAL_ARTICLES);
           return localArticles.filter(a => a.status === 'published');
+        } catch (e) {
+          console.error("Failed to parse local articles during fallback:", e);
+          return (isSupabaseConfigured() ? [] : INITIAL_ARTICLES).filter(a => a.status === 'published');
         }
       }
-
-      const { data, error } = await supabase
-        .from('articles')
-        .select('*, author:profiles(full_name, avatar_url, username)')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error("Error fetching published articles:", error);
-        return [];
-      }
-      return data.map(mapSupabaseToArticle);
     }
 
+    console.log("Supabase not configured, using local storage");
     const articles = await articleService.getAllArticles();
     return articles.filter(a => a.status === 'published');
   },
@@ -313,82 +468,253 @@ export const articleService = {
     });
   },
 
-  getArticleById: async (id: string | number): Promise<Article | undefined> => {
+  getArticleByTitle: async (title: string): Promise<Article | undefined> => {
     if (isSupabaseConfigured()) {
-      const { data, error } = await supabase
-        .from('articles')
-        .select('*, author:profiles(full_name, avatar_url, username)')
-        .eq('id', id)
-        .single();
-      
-      if (error) {
-        console.error("Error fetching article by id:", error);
-        return undefined;
-      }
-      
-      // Fetch comments for this article
-      const { data: commentsData } = await supabase
-        .from('comments')
-        .select('*, user:profiles(full_name, avatar_url)')
-        .eq('article_id', id)
-        .order('created_at', { ascending: true });
+      try {
+        const fetchPromise = supabase
+          .from('articles')
+          .select('*')
+          .ilike('title', title.trim())
+          .maybeSingle();
+
+        const { data, error } = (await Promise.race([
+          fetchPromise,
+          timeout(15000)
+        ])) as any;
         
-      const article = mapSupabaseToArticle(data);
-      if (commentsData) {
-        article.comments = commentsData.map((c: any) => ({
-          id: String(c.id),
-          author: c.user?.full_name || 'Anonymous',
-          content: c.content,
-          date: new Date(c.created_at).toLocaleDateString(),
-          avatar: c.user?.avatar_url,
-          userId: c.user_id
-        }));
+        if (!error && data) {
+          return mapSupabaseToArticle(data);
+        }
+      } catch (err) {
+        console.error("Error fetching article by title:", err);
       }
-      
-      return article;
+    }
+    
+    // Check local storage
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const localArticles: Article[] = JSON.parse(stored);
+        const localArticle = localArticles.find(a => a.title.toLowerCase().trim() === title.toLowerCase().trim());
+        if (localArticle) return localArticle;
+      }
+    } catch (e) {
+      console.warn("Error checking local storage by title", e);
     }
 
-    const articles = await articleService.getAllArticles();
-    // Use loose equality to match number vs string ID
-    return articles.find(a => a.id == id);
+    // Check initial articles
+    return INITIAL_ARTICLES.find(a => a.title.toLowerCase().trim() === title.toLowerCase().trim());
+  },
+
+  getArticleById: async (id: string | number): Promise<Article | undefined> => {
+    // 1. First check local storage for this exact ID
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const localArticles: Article[] = JSON.parse(stored);
+        const localArticle = localArticles.find(a => String(a.id) === String(id));
+        if (localArticle) return localArticle;
+      }
+      
+      // Also check bookmarks storage for metadata if not found in articles storage
+      const storedBookmarks = localStorage.getItem('tech-theory-bookmarks');
+      if (storedBookmarks) {
+        const bookmarkedArticles: any[] = JSON.parse(storedBookmarks);
+        const bookmarked = bookmarkedArticles.find(a => String(a.id) === String(id));
+        if (bookmarked) {
+          // Map to Article type
+          return {
+            ...bookmarked,
+            content: bookmarked.content || '',
+            excerpt: bookmarked.excerpt || '',
+            status: bookmarked.status || 'published',
+            views: bookmarked.views || 0,
+            likes: bookmarked.likes || 0
+          } as Article;
+        }
+      }
+    } catch (e) {
+      console.warn("Error checking local storage in getArticleById", e);
+    }
+
+    // 2. If not found locally, try Supabase if configured
+    if (isSupabaseConfigured()) {
+      const isUUID = (val: any) => {
+        if (typeof val !== 'string') return false;
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      };
+
+      try {
+        const isValidId = isUUID(id);
+        
+        if (isValidId) {
+          const fetchPromise = supabase
+            .from('articles')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+          const { data, error } = (await Promise.race([
+            fetchPromise,
+            timeout(15000)
+          ])) as any;
+          
+          if (!error && data) {
+            const article = mapSupabaseToArticle(data);
+            
+            // Fetch comments
+            try {
+              const { data: commentsData } = await (await Promise.race([
+                supabase
+                  .from('comments')
+                  .select('*')
+                  .eq('article_id', id)
+                  .order('created_at', { ascending: false }),
+                timeout(15000)
+              ])) as any;
+                
+              if (commentsData) {
+                article.comments = commentsData.map((c: any) => ({
+                  id: String(c.id),
+                  author: c.author_name || 'Anonymous',
+                  content: c.content,
+                  date: new Date(c.created_at).toLocaleDateString(),
+                  avatar: c.author_avatar,
+                  userId: c.user_id
+                }));
+              }
+            } catch (commentErr) {
+              console.warn("Error fetching comments", commentErr);
+            }
+            
+            return article;
+          }
+        } else {
+          // If not a UUID, it might be an old numeric ID. 
+          // Check if we can find a title mapping from INITIAL_ARTICLES
+          const initial = INITIAL_ARTICLES.find(a => String(a.id) === String(id));
+          if (initial) {
+            console.log(`Found numeric ID ${id} in INITIAL_ARTICLES. Attempting title-based lookup for "${initial.title}"`);
+            const articleByTitle = await articleService.getArticleByTitle(initial.title);
+            if (articleByTitle) return articleByTitle;
+          }
+        }
+      } catch (err) {
+        console.error("Exception in getArticleById Supabase fetch:", err);
+      }
+    }
+    
+    // 3. Last resort: check INITIAL_ARTICLES
+    return INITIAL_ARTICLES.find(a => String(a.id) === String(id));
+  },
+
+  getArticlesByIds: async (ids: (string | number)[]): Promise<Article[]> => {
+    if (ids.length === 0) return [];
+    
+    const uniqueIds = Array.from(new Set(ids.map(id => String(id))));
+    const results: Article[] = [];
+    
+    // Split IDs into UUIDs and others
+    const isUUID = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    const uuids = uniqueIds.filter(isUUID);
+    const otherIds = uniqueIds.filter(id => !isUUID(id));
+    
+    // 1. Fetch UUIDs from Supabase
+    if (isSupabaseConfigured() && uuids.length > 0) {
+      try {
+        const { data, error } = await supabase
+          .from('articles')
+          .select('*')
+          .in('id', uuids);
+          
+        if (!error && data) {
+          results.push(...data.map(mapSupabaseToArticle));
+        }
+      } catch (err) {
+        console.error("Error fetching articles by multiple IDs from Supabase:", err);
+      }
+    }
+    
+    // 2. Fetch others from local storage and initial articles
+    for (const id of otherIds) {
+      const article = await articleService.getArticleById(id);
+      if (article) results.push(article);
+    }
+    
+    // 3. For any UUIDs that weren't found in Supabase (unlikely but possible), try local/initial
+    const foundUuids = results.map(r => String(r.id));
+    const missingUuids = uuids.filter(id => !foundUuids.includes(id));
+    for (const id of missingUuids) {
+      const article = await articleService.getArticleById(id);
+      if (article) results.push(article);
+    }
+    
+    return results;
   },
 
   saveArticle: async (article: Article): Promise<void> => {
     if (isSupabaseConfigured()) {
-      const user = (await supabase.auth.getUser()).data.user;
-      if (!user) throw new Error("User not authenticated");
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      let authorId = user?.id; 
+      if (!authorId) {
+          const authData = localStorage.getItem('admin-auth');
+          const localUser = authData ? JSON.parse(authData).user : null;
+          authorId = localUser?.username || localUser?.email || article.author;
+      }
 
-      const articleData = {
+      const articleData: any = {
         title: article.title,
         content: article.content,
         excerpt: article.excerpt,
         category: article.category,
         subcategory: article.subCategory,
         status: article.status,
-        author_id: user.id,
+        author_id: authorId,
+        author_display_name: article.author,
         image_url: article.image,
-        views: article.views,
-        likes: article.likes,
+        views: article.views || 0,
+        likes: article.likes || 0,
         read_time: article.readTime,
-        tags: article.tags,
-        local_images: article.localImages,
-        is_trending: article.isTrending,
-        priority: article.priority
+        tags: article.tags || [],
+        local_images: article.localImages || {},
+        is_trending: article.isTrending || false,
+        priority: article.priority || 'medium',
+        slug: articleService.generateSlug(article.title)
       };
 
-      if (article.id && typeof article.id === 'number') {
-        // Update existing
-         const { error } = await supabase
-          .from('articles')
-          .update(articleData)
-          .eq('id', article.id);
-         if (error) throw error;
-      } else {
-        // Create new
-        const { error } = await supabase
-          .from('articles')
-          .insert(articleData);
-        if (error) throw error;
+      try {
+        // Check if ID is a valid UUID (existing Supabase article)
+        const isUUID = (id: any) => {
+          if (!id) return false;
+          const s = String(id);
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+        };
+        
+        const isExistingArticle = article.id && isUUID(article.id);
+        console.log("Saving article:", { id: article.id, isExistingArticle });
+
+        if (isExistingArticle) {
+            // Update existing UUID article
+            const { error } = await supabase
+              .from('articles')
+              .update(articleData)
+              .eq('id', article.id);
+            if (error) throw error;
+        } else {
+            // New article or local temporary ID -> Insert
+            // Don't pass the local ID, let Supabase generate a UUID
+            const { error } = await supabase
+              .from('articles')
+              .insert(articleData);
+            if (error) throw error;
+        }
+      } catch (error: any) {
+        console.error("Supabase Save Error:", error);
+        if (error.message === 'Failed to fetch') {
+          throw new Error("Connection failed: Could not connect to Supabase. Please check your internet connection and ensure your Supabase URL in .env is correct and reachable.");
+        }
+        throw error;
       }
       return;
     }
@@ -583,6 +909,15 @@ export const articleService = {
     
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+  },
+
+  generateSlug: (title: string): string => {
+    return title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   },
 
   calculateReadTime: (content: string): string => {

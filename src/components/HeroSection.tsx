@@ -6,37 +6,53 @@ import { Loader2 } from "lucide-react";
 
 interface HeroSectionProps {
   articles?: Article[];
+  isLoading?: boolean;
 }
 
-const HeroSection = ({ articles }: HeroSectionProps) => {
+const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps) => {
   const [internalStories, setInternalStories] = useState<Article[]>([]);
-  const [isLoading, setIsLoading] = useState(!articles);
+  const [internalLoading, setInternalLoading] = useState(!articles);
 
   useEffect(() => {
     if (articles) return;
 
     const fetchArticles = async () => {
-      setIsLoading(true);
+      setInternalLoading(true);
       try {
         const data = await articleService.getPublishedArticles();
         setInternalStories(data.slice(0, 12));
       } catch (error) {
         console.error("Failed to fetch latest stories", error);
       } finally {
-        setIsLoading(false);
+        setInternalLoading(false);
       }
     };
 
     fetchArticles();
   }, [articles]);
 
+  const isLoading = externalLoading ?? internalLoading;
   const latestStories = articles || internalStories;
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <section className="relative py-16 px-4">
+        <div className="container mx-auto">
+          <div className="mb-12">
+            <div className="h-9 w-48 bg-muted animate-pulse rounded-md mb-2"></div>
+            <div className="w-16 h-1 bg-primary rounded-full"></div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="h-[400px] bg-muted animate-pulse rounded-sm"></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="h-[192px] bg-muted animate-pulse rounded-sm"></div>
+              <div className="h-[192px] bg-muted animate-pulse rounded-sm"></div>
+              <div className="h-[192px] bg-muted animate-pulse rounded-sm"></div>
+              <div className="h-[192px] bg-muted animate-pulse rounded-sm"></div>
+            </div>
+          </div>
+        </div>
+      </section>
     );
   }
 
@@ -54,6 +70,10 @@ const HeroSection = ({ articles }: HeroSectionProps) => {
   }
 
 
+  const handlePrefetch = (articleId: string | number) => {
+    articleService.getArticleById(String(articleId)).catch(e => console.warn("Prefetch failed:", e));
+  };
+
   return (
     <section className="relative py-16 px-4">
       <div className="container mx-auto">
@@ -66,7 +86,7 @@ const HeroSection = ({ articles }: HeroSectionProps) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Large Featured Article */}
           <article className="group cursor-pointer">
-            <Link to={`/article/${latestStories[0].id}`} className="block">
+            <Link to={`/article/${latestStories[0].id}`} className="block" onMouseEnter={() => handlePrefetch(latestStories[0].id)}>
               <div className="rounded-sm overflow-hidden relative h-[400px] transition-all duration-300 hover:scale-[1.02] bg-card shadow-sm group">
                 <img
                   src={latestStories[0].image}
@@ -92,7 +112,7 @@ const HeroSection = ({ articles }: HeroSectionProps) => {
           <div className="grid grid-cols-2 gap-4">
             {latestStories.slice(1, 5).map((story, index) => (
               <article key={story.id} className="group cursor-pointer">
-                <Link to={`/article/${story.id}`} className="block">
+                <Link to={`/article/${story.id}`} className="block" onMouseEnter={() => handlePrefetch(story.id)}>
                   <div className="rounded-sm overflow-hidden relative h-[192px] transition-all duration-300 hover:scale-[1.02] bg-card shadow-sm">
                     <img
                       src={story.image}
@@ -120,7 +140,7 @@ const HeroSection = ({ articles }: HeroSectionProps) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {latestStories.slice(5, 8).map((story, index) => (
             <article key={story.id} className="group cursor-pointer">
-              <Link to={`/article/${story.id}`} className="block">
+              <Link to={`/article/${story.id}`} className="block" onMouseEnter={() => handlePrefetch(story.id)}>
                 <div className="rounded-sm overflow-hidden relative h-[280px] transition-all duration-300 hover:scale-[1.02] bg-card shadow-sm">
                   <img
                     src={story.image}

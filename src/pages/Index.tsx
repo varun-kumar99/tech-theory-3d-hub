@@ -8,13 +8,48 @@ import { articleService, Article } from "@/services/articleService";
 
 const Index = () => {
   const [allArticles, setAllArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let debounceTimer: any = null;
     const fetchArticles = async () => {
-      const articles = await articleService.getPriorityArticles();
-      setAllArticles(articles);
+      setIsLoading(true);
+      try {
+        const articles = await articleService.getPriorityArticles();
+        setAllArticles(articles);
+      } catch (error) {
+        console.error("Error fetching articles:", error);
+      } finally {
+        // If there are no articles returned immediately, keep showing the
+        // loading state briefly so a background refresh can supply data
+        // without flashing the "No articles" UI. If articles exist, stop loading now.
+        if (allArticles.length === 0) {
+          // small debounce (1.2s)
+          debounceTimer = setTimeout(() => setIsLoading(false), 1200);
+        } else {
+          setIsLoading(false);
+        }
+      }
     };
     fetchArticles();
+
+    // Listen for background updates so we can update UI when fresh data arrives
+    const handler = (e: any) => {
+      try {
+        const fresh: Article[] = e?.detail;
+        if (Array.isArray(fresh) && fresh.length > 0) {
+          setAllArticles(fresh);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    window.addEventListener('articles:updated', handler as EventListener);
+    return () => {
+      window.removeEventListener('articles:updated', handler as EventListener);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
   }, []);
 
   const heroArticles = allArticles.slice(0, 8);
@@ -53,40 +88,43 @@ const Index = () => {
     <div className="min-h-screen">
       <Navbar />
       <main className="pb-20">
-        <HeroSection articles={heroArticles} />
-        <NewsGrid articles={trendingArticles} title="Latest" viewAllLink="/search" />
-        
-        {techArticles.length > 0 && (
-          <CategorySection 
-            articles={techArticles} 
-            title="Tech" 
-            viewAllLink="/category/tech" 
-          />
-        )}
-        
-        {bikesArticles.length > 0 && (
-          <CategorySection 
-            articles={bikesArticles} 
-            title="Bikes" 
-            viewAllLink="/category/bikes" 
-          />
-        )}
+        <HeroSection articles={heroArticles} isLoading={isLoading} />
+        <NewsGrid articles={trendingArticles} title="Latest" viewAllLink="/search" isLoading={isLoading} />
 
-        {carsArticles.length > 0 && (
-          <CategorySection 
-            articles={carsArticles} 
-            title="Cars" 
-            viewAllLink="/category/cars" 
-          />
+        {!isLoading && allArticles.length === 0 && (
+          <div className="max-w-4xl mx-auto text-center py-20 text-gray-700 dark:text-gray-300">
+            <h3 className="text-2xl font-semibold mb-2">No articles found</h3>
+            <p className="text-sm">It looks like your database has no published articles or permissions prevent reading them. Check Supabase RLS/policies or try signing out and signing in again.</p>
+          </div>
         )}
         
-        {entertainmentArticles.length > 0 && (
-          <CategorySection 
-            articles={entertainmentArticles} 
-            title="Entertainment" 
-            viewAllLink="/category/entertainment" 
-          />
-        )}
+        <CategorySection 
+          articles={techArticles} 
+          title="Tech" 
+          viewAllLink="/category/tech" 
+          isLoading={isLoading}
+        />
+        
+        <CategorySection 
+          articles={bikesArticles} 
+          title="Bikes" 
+          viewAllLink="/category/bikes" 
+          isLoading={isLoading}
+        />
+
+        <CategorySection 
+          articles={carsArticles} 
+          title="Cars" 
+          viewAllLink="/category/cars" 
+          isLoading={isLoading}
+        />
+        
+        <CategorySection 
+          articles={entertainmentArticles} 
+          title="Entertainment" 
+          viewAllLink="/category/entertainment" 
+          isLoading={isLoading}
+        />
       </main>
       <Footer />
     </div>

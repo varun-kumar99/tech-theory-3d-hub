@@ -299,7 +299,7 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     line-height: 1.6;
   }
-  
+
   /* Markdown-style heading visualization in textarea */
   .markdown-preview {
     white-space: pre-wrap;
@@ -326,5 +326,31 @@
     font-weight: 400;
     line-height: 1.6;
     margin: 8px 0;
+  }
+
+  /* Custom prose styles for reduced vertical spacing */
+  .prose p {
+    margin-top: 0.5em !important;
+    margin-bottom: 0.5em !important;
+  }
+
+  .prose h1 {
+    margin-top: 2em !important;
+    margin-bottom: 0.8em !important;
+  }
+
+  .prose h2 {
+    margin-top: 1.8em !important;
+    margin-bottom: 0.7em !important;
+  }
+
+  .prose h3 {
+    margin-top: 1.5em !important;
+    margin-bottom: 0.6em !important;
+  }
+
+  .prose h4, .prose h5, .prose h6 {
+    margin-top: 1.2em !important;
+    margin-bottom: 0.5em !important;
   }
 }

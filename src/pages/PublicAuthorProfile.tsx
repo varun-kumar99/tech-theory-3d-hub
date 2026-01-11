@@ -12,12 +12,14 @@ const PublicAuthorProfile = () => {
   const { authorName } = useParams();
   const navigate = useNavigate();
   const [author, setAuthor] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [authorArticles, setAuthorArticles] = useState<Article[]>([]);
   const [topCategories, setTopCategories] = useState<string[]>([]);
 
   useEffect(() => {
     const loadAuthorData = async () => {
       if (!authorName) return;
+      setLoading(true);
 
       let decodedName = authorName;
       try {
@@ -32,7 +34,7 @@ const PublicAuthorProfile = () => {
       setAuthorArticles(articlesByAuthor);
 
       // 1. Fetch Author Data (Try to find in registered users, otherwise fallback to "ghost" profile if they have articles)
-      const users = userService.getAllUsers();
+      const users = await userService.getAllUsers();
       const foundAuthor = users.find(u => u.name === decodedName);
       
       if (foundAuthor) {
@@ -65,10 +67,24 @@ const PublicAuthorProfile = () => {
         .slice(0, 3); // Top 3 categories
       
       setTopCategories(sortedCategories);
+      setLoading(false);
     };
 
     loadAuthorData();
   }, [authorName]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-20 text-center">
+          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground animate-pulse">Loading author profile...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!author) {
     return (

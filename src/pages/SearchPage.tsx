@@ -8,9 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link, useSearchParams } from "react-router-dom";
-import { articleService } from "@/services/articleService";
+import { articleService, Article } from "@/services/articleService";
 import { NAV_CATEGORIES } from "@/constants/categories";
 import { BookmarkButton } from "@/components/BookmarkButton";
+import { useLikes } from "@/hooks/useLikes";
+import { cn } from "@/lib/utils";
 
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,10 +26,17 @@ const SearchPage = () => {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
 
-  const [filteredArticles, setFilteredArticles] = useState<any[]>([]);
-  const [allArticles, setAllArticles] = useState<any[]>([]);
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
+  const [allArticles, setAllArticles] = useState<Article[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toggleLike, isArticleLiked } = useLikes();
+
+  const handleToggleLike = (e: React.MouseEvent, article: Article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLike(article);
+  };
 
   // Update searchQuery when URL param changes
   useEffect(() => {
@@ -290,8 +299,23 @@ const SearchPage = () => {
 
             {/* Results */}
             <div className="lg:col-span-3">
-              {/* Results Header */}
-              <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="flex flex-col gap-3">
+                      <div className="aspect-video bg-muted animate-pulse rounded-xl" />
+                      <div className="space-y-2 px-1">
+                        <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                        <div className="h-6 w-full bg-muted animate-pulse rounded" />
+                        <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Results Header */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
                 <p className="text-muted-foreground font-medium">
                   {filteredArticles.length} result{filteredArticles.length !== 1 ? 's' : ''}
                 </p>
@@ -375,10 +399,18 @@ const SearchPage = () => {
                             {/* Hover Actions (Optional, but good for UX) */}
                             <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                               <button 
-                                className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
-                                onClick={(e) => e.preventDefault()}
+                                className={cn(
+                                  "p-2 backdrop-blur-sm rounded-full transition-colors",
+                                  isArticleLiked(article) 
+                                    ? "bg-red-500 hover:bg-red-600" 
+                                    : "bg-black/50 hover:bg-black/70"
+                                )}
+                                onClick={(e) => handleToggleLike(e, article)}
                               >
-                                <Heart className="w-3.5 h-3.5 text-white" />
+                                <Heart className={cn(
+                                  "w-3.5 h-3.5 text-white",
+                                  isArticleLiked(article) && "fill-current"
+                                )} />
                               </button>
                               <div 
                                 className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
@@ -406,10 +438,18 @@ const SearchPage = () => {
                                 />
                                 <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                   <button 
-                                    className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
-                                    onClick={(e) => e.preventDefault()}
+                                    className={cn(
+                                      "p-2 backdrop-blur-sm rounded-full transition-colors",
+                                      isArticleLiked(article) 
+                                        ? "bg-red-500 hover:bg-red-600" 
+                                        : "bg-black/50 hover:bg-black/70"
+                                    )}
+                                    onClick={(e) => handleToggleLike(e, article)}
                                   >
-                                    <Heart className="w-3.5 h-3.5 text-white" />
+                                    <Heart className={cn(
+                                      "w-3.5 h-3.5 text-white",
+                                      isArticleLiked(article) && "fill-current"
+                                    )} />
                                   </button>
                                   <div 
                                     className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
@@ -479,11 +519,12 @@ const SearchPage = () => {
                   <Button onClick={clearAllFilters}>Clear All Filters</Button>
                 </div>
               )}
+              </>
+            )}
             </div>
           </div>
         </div>
       </main>
-      
       <Footer />
     </div>
   );

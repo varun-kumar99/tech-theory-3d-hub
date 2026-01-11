@@ -96,7 +96,8 @@ IMPORTANT: You are a ghostwriter.
 
       // Step 2: Generate Content with Gemini
       const prompt = `
-        Act as a professional tech blog writer. Follow these instructions to write a concise, engaging, and SEO-optimized blog post: "${request.topic}".
+        Act as a professional tech blog writer. Follow these instructions to write a very concise, precise, engaging, and SEO-optimized blog post: "${request.topic}".
+        Tailor the content for an Indian audience, considering cultural context, relevance, and common terminology.
         
         ${researchContext}
 
@@ -106,16 +107,17 @@ IMPORTANT: You are a ghostwriter.
         Structure requirements:
         1. Do NOT include a "Table of Contents".
         2. Use ## for main headings and ### for subheadings.
-        3. Include relevant markdown tables where comparing data or listing features helps clarity.
+        3. Do NOT include markdown tables unless specifically requested in the user's topic. If a table is included, ensure it is concise.
         4. Include image placeholders like ![Description of image](https://via.placeholder.com/800x400?text=Topic+Image) where visual aids would be helpful.
         5. If the user instructions mention including a YouTube video, use the HTML iframe embed code. Ensure the iframe is responsive (width="100%" height="400") and the entire <iframe> tag is on a single line without line breaks.
-        6. Keep the article concise and to the point (around 500-600 words).
+        6. Keep the article very concise and to the point (around 300-400 words).
+        7. Minimize excessive vertical spacing between headings and paragraphs, keeping the flow tight.
         
         Return the response in valid JSON format with the following structure:
         {
           "title": "Catchy Title",
           "excerpt": "Short summary (2-3 sentences)",
-          "content": "Full blog post content in Markdown format (HTML is allowed for embeds). Make it concise (around 500-600 words). Do NOT include a Table of Contents. Use ## for headings. Include markdown tables, image placeholders, and YouTube embeds if requested. Ensure HTML tags are on single lines.",
+          "content": "Full blog post content in Markdown format (HTML is allowed for embeds). Make it very concise (around 300-400 words). Do NOT include a Table of Contents. Use ## for headings. Do NOT include markdown tables unless specifically requested. Include image placeholders, and YouTube embeds if requested. Ensure HTML tags are on single lines. Minimize excessive vertical spacing.",
           "tags": ["tag1", "tag2", "tag3"],
           "category": "Select one EXACT category name from the provided list",
           "subCategory": "Select one EXACT subcategory from the provided list that matches the selected category (optional, leave empty if no subcategories exist for the chosen category)"

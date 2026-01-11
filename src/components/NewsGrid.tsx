@@ -1,18 +1,57 @@
 import { Heart, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BookmarkButton } from "./BookmarkButton";
 import { Article } from "@/services/articleService";
+import { cn } from "@/lib/utils";
+import { useLikes } from "@/hooks/useLikes";
 
 interface NewsGridProps {
   articles: Article[];
   title?: string;
   viewAllLink?: string;
+  isLoading?: boolean;
 }
 
-const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search" }: NewsGridProps) => {
+const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search", isLoading = false }: NewsGridProps) => {
   const [currentPage, setCurrentPage] = useState(1);
+  const { toggleLike, isArticleLiked } = useLikes();
   const itemsPerPage = 12;
+
+  const handleToggleLike = (e: React.MouseEvent, article: Article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleLike(article);
+  };
+
+  if (isLoading) {
+    return (
+      <section className="pb-16 pt-0 px-4">
+        <div className="container mx-auto">
+          <div className="max-w-5xl">
+            <div className="relative pt-6 mb-8 flex justify-between items-center">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-border/40"></div>
+              <div className="absolute top-0 left-0 w-16 h-[2px] bg-yellow-500"></div>
+              <div className="h-6 w-32 bg-muted animate-pulse rounded"></div>
+              <div className="h-4 w-20 bg-muted animate-pulse rounded"></div>
+            </div>
+            <div className="space-y-8">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex flex-col md:flex-row gap-6 items-start">
+                  <div className="w-full md:w-[320px] h-[180px] bg-muted animate-pulse rounded-lg flex-shrink-0"></div>
+                  <div className="flex-1 space-y-3 py-1">
+                    <div className="h-4 w-40 bg-muted animate-pulse rounded"></div>
+                    <div className="h-8 w-full bg-muted animate-pulse rounded"></div>
+                    <div className="h-4 w-full bg-muted animate-pulse rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (!articles || articles.length === 0) {
     return null;
@@ -67,10 +106,18 @@ const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search" }: NewsG
                           {/* Action Buttons */}
                           <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <button 
-                              className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
-                              onClick={(e) => e.preventDefault()}
+                              className={cn(
+                                "p-2 backdrop-blur-sm rounded-full transition-colors",
+                                isArticleLiked(article) 
+                                  ? "bg-red-500 hover:bg-red-600" 
+                                  : "bg-black/50 hover:bg-black/70"
+                              )}
+                              onClick={(e) => handleToggleLike(e, article)}
                             >
-                              <Heart className="w-3.5 h-3.5 text-white" />
+                              <Heart className={cn(
+                                "w-3.5 h-3.5 text-white",
+                                isArticleLiked(article) && "fill-current"
+                              )} />
                             </button>
                             <div 
                               className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"

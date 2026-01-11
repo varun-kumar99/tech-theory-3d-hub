@@ -46,7 +46,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser, logout, isLoading: authLoading, isUserFullyLoaded } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
@@ -181,6 +181,11 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    if (authLoading || !isUserFullyLoaded) {
+      // Still loading authentication state or user data, do nothing yet
+      return;
+    }
+
     const loadData = async () => {
       // Load users
       setUsers(await userService.getAllUsers());
@@ -215,7 +220,7 @@ const AdminDashboard = () => {
     if (checkAuthFunction()) {
       loadData();
     }
-  }, [navigate, authUser]);
+  }, [navigate, authUser, authLoading, isUserFullyLoaded]);
 
   const handleLogout = () => {
     if (authUser) {
@@ -308,26 +313,26 @@ const AdminDashboard = () => {
     trendingArticles: articles.filter(a => a.isTrending).length
   };
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     if (isEditingUser && currentUser.id) {
-      userService.updateUser(currentUser as User);
+      await userService.updateUser(currentUser as User);
       toast({ title: "Success", description: "User updated successfully" });
     } else {
       if (!currentUser.name || !currentUser.email || !currentUser.password) {
         toast({ variant: "destructive", title: "Error", description: "Name, Email and Password are required" });
         return;
       }
-      userService.addUser(currentUser as Omit<User, 'id' | 'joinedDate'>);
+      await userService.addUser(currentUser as Omit<User, 'id' | 'joinedDate'>);
       toast({ title: "Success", description: "User added successfully" });
     }
-    setUsers(userService.getAllUsers());
+    setUsers(await userService.getAllUsers());
     setIsUserDialogOpen(false);
     resetUserForm();
   };
 
-  const handleDeleteUser = (id: string) => {
-    userService.deleteUser(id);
-    setUsers(userService.getAllUsers());
+  const handleDeleteUser = async (id: string) => {
+    await userService.deleteUser(id);
+    setUsers(await userService.getAllUsers());
     toast({ title: "Success", description: "User deleted successfully" });
   };
 

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBookmarks } from "@/contexts/BookmarkContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -19,9 +20,11 @@ import { toast } from "@/hooks/use-toast";
 const ProfilePage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, logout, isLoading: authLoading } = useAuth();
+  const { bookmarks: contextBookmarks, removeBookmark: contextRemoveBookmark, isBookmarked } = useBookmarks();
   const [activeTab, setActiveTab] = useState("overview");
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
     const tab = searchParams.get("tab");
@@ -34,13 +37,27 @@ const ProfilePage = () => {
     setActiveTab(value);
     setSearchParams({ tab: value });
   };
+  
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    avatar: user?.avatar || "",
-    firstName: user?.name?.split(' ')[0] || "",
-    lastName: user?.name?.split(' ').slice(1).join(' ') || "",
+    name: "",
+    email: "",
+    avatar: "",
+    firstName: "",
+    lastName: "",
   });
+
+  // Update form data when user is loaded
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || "",
+        email: user.email || "",
+        avatar: user.avatar || "",
+        firstName: user.name?.split(' ')[0] || "",
+        lastName: user.name?.split(' ').slice(1).join(' ') || "",
+      });
+    }
+  }, [user]);
 
   const PRESET_AVATARS = [
     "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
@@ -69,6 +86,8 @@ const ProfilePage = () => {
     const loadProfileData = async () => {
       try {
         if (user) {
+          setIsDataLoading(true);
+          
           setFormData({
             name: user.name || "",
             email: user.email || "",
@@ -77,58 +96,38 @@ const ProfilePage = () => {
             lastName: user.name?.split(' ').slice(1).join(' ') || "",
           });
     
-          // Process Bookmarks
-          // Ensure user.bookmarks is defined and is an array
-          const bookmarkIds = Array.isArray(user.bookmarks) ? user.bookmarks : [];
-          const bookmarks = await Promise.all(bookmarkIds.map(async (id) => {
-            try {
-              // If we have an async getter, use it, otherwise use the sync one
-              // Assuming articleService.getArticleById is async if it fetches from DB
-              const article = await articleService.getArticleById(id);
-              return article ? {
-                id: article.id,
-                title: article.title,
-                category: article.category.split(' • ')[0],
-                date: article.date,
-                readTime: article.readTime?.replace(' read', '') || '5 min',
-                image: article.image
-              } : null;
-            } catch (e) {
-              console.error(`Error fetching article ${id}:`, e);
-              return null;
-            }
+          // Process Bookmarks - use context bookmarks instead of re-fetching
+          console.log("Using bookmarks from context:", contextBookmarks.length);
+          const mappedBookmarks = contextBookmarks.map(article => ({
+            id: article.id,
+            title: article.title,
+            category: article.category.split(' • ')[0],
+            date: article.date,
+            readTime: article.readTime?.replace(' read', '') || '5 min',
+            image: article.image
           }));
-          setBookmarkedArticles(bookmarks.filter(Boolean));
+          setBookmarkedArticles(mappedBookmarks);
     
           // Process History
-          // Ensure user.readingHistory is defined and is an array
           const historyIds = Array.isArray(user.readingHistory) ? user.readingHistory : [];
-          const history = await Promise.all(historyIds.map(async (id) => {
-            try {
-              const article = await articleService.getArticleById(id);
-              return article ? {
-                id: article.id,
-                title: article.title,
-                category: article.category.split(' • ')[0],
-                date: article.date,
-                readTime: article.readTime?.replace(' read', '') || '5 min',
-                progress: 100 // Assume read articles are 100% complete
-              } : null;
-            } catch (e) {
-              console.error(`Error fetching history article ${id}:`, e);
-              return null;
-            }
+          const historyArticles = await articleService.getArticlesByIds(historyIds);
+          
+          const history = historyArticles.map(article => ({
+            id: article.id,
+            title: article.title,
+            category: article.category.split(' • ')[0],
+            date: article.date,
+            readTime: article.readTime?.replace(' read', '') || '5 min',
+            progress: 100 
           }));
-          setReadingHistory(history.filter(Boolean));
+          setReadingHistory(history);
     
           // Calculate Stats
-          const validHistory = history.filter(Boolean);
-          const totalMinutes = validHistory.reduce((acc, item) => {
+          const totalMinutes = history.reduce((acc, item) => {
             const minutes = parseInt(item?.readTime || "0");
             return acc + (isNaN(minutes) ? 0 : minutes);
           }, 0);
 
-          // Get Liked Articles Count from Local Storage
           let likedCount = 0;
           try {
             const likedArticles = JSON.parse(localStorage.getItem('liked_articles') || '[]');
@@ -138,18 +137,24 @@ const ProfilePage = () => {
           }
     
           setReadingStats({
-            articlesRead: validHistory.length,
+            articlesRead: history.length,
             totalReadTime: totalMinutes < 60 ? `${totalMinutes} min` : `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`,
             likedArticles: likedCount
           });
         }
       } catch (error) {
         console.error("Error loading profile data:", error);
+      } finally {
+        setIsDataLoading(false);
       }
     };
 
-    loadProfileData();
-  }, [user]);
+    if (user) {
+      loadProfileData();
+    } else if (!authLoading) {
+      setIsDataLoading(false);
+    }
+  }, [user, authLoading, contextBookmarks]);
 
   const handleProfileImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -202,26 +207,23 @@ const ProfilePage = () => {
   };
 
   const handleRemoveBookmark = (articleId: string | number) => {
-    if (!user) return;
-
-    // 1. Update local state
-    setBookmarkedArticles(prev => prev.filter(a => String(a.id) !== String(articleId)));
-
-    // 2. Update user context
-    // Ensure user.bookmarks is an array
-    const currentBookmarks = Array.isArray(user.bookmarks) ? user.bookmarks : [];
-    const updatedBookmarks = currentBookmarks.filter(id => String(id) !== String(articleId));
-    
-    updateUser({
-      ...user,
-      bookmarks: updatedBookmarks
-    });
-
+    contextRemoveBookmark(articleId);
     toast({
       title: "Bookmark Removed",
       description: "Article removed from your bookmarks."
     });
   };
+
+  if (authLoading || (user && isDataLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-muted-foreground animate-pulse">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -267,11 +269,11 @@ const ProfilePage = () => {
                     <div className="flex items-center gap-4 mt-4">
                       <div className="flex items-center gap-2">
                         <BookmarkIcon className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">{user.bookmarks.length} Bookmarks</span>
+                        <span className="text-sm font-medium">{contextBookmarks.length} Bookmarks</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <History className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">{user.readingHistory.length} Articles Read</span>
+                        <span className="text-sm font-medium">{readingHistory.length} Articles Read</span>
                       </div>
                     </div>
                   </div>
