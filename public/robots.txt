@@ -12,7 +12,7 @@ Disallow: /manage-credentials
 Disallow: /create-article
 
 # Host
-Host: https://tech-theory.com
+Host: https://techtheory.co.in
 
 # Sitemaps
-Sitemap: https://tech-theory.com/sitemap.xml
+Sitemap: https://techtheory.co.in/sitemap.xml
