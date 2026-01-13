@@ -85,8 +85,12 @@ const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps)
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Large Featured Article */}
           <article className="group cursor-pointer">
-            <Link to={`/article/${latestStories[0].id}`} className="block" onMouseEnter={() => handlePrefetch(latestStories[0].id)}>
-              <div className="rounded-sm overflow-hidden relative h-[400px] transition-all duration-300 hover:scale-[1.02] bg-card shadow-sm group">
+            <Link 
+              to={`/article/${latestStories[0].id}`} 
+              className="block w-full h-full" 
+              onMouseEnter={() => handlePrefetch(latestStories[0].id)}
+            >
+              <div className="rounded-sm overflow-hidden relative h-[300px] md:h-[400px] transition-all duration-300 hover:scale-[1.01] bg-card shadow-sm">
                 <img
                   src={latestStories[0].image}
                   alt={latestStories[0].title}
@@ -94,14 +98,14 @@ const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps)
                   loading="eager"
                   fetchPriority="high"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-0" />
 
                 {/* Content Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col justify-end z-10">
-                  <h3 className="text-2xl md:text-4xl font-extrabold leading-tight text-white mb-1 line-clamp-2 drop-shadow-md group-hover:underline decoration-2 underline-offset-4">
+                <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col justify-end z-10 pointer-events-none">
+                  <h3 className="text-xl md:text-4xl font-extrabold leading-tight text-white mb-1 line-clamp-3 drop-shadow-md group-hover:underline decoration-2 underline-offset-4">
                     {latestStories[0].title}
                   </h3>
-                  <div className="text-sm text-gray-300 flex items-center font-medium">
+                  <div className="text-xs md:text-sm text-gray-300 flex items-center font-medium">
                     <span>{latestStories[0].date}</span>
                   </div>
                 </div>

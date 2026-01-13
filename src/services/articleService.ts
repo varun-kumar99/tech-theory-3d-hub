@@ -82,7 +82,7 @@ const mapSupabaseToArticle = (data: any): Article => ({
   author: data.author_display_name || data.author?.full_name || 'Unknown',
   authorId: data.author_id,
   authorEmail: '', 
-  date: new Date(data.created_at).toLocaleDateString(),
+  date: data.created_at ? new Date(data.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
   image: data.image_url,
   views: data.views || 0,
   likes: data.likes || 0,
@@ -582,7 +582,7 @@ export const articleService = {
                   id: String(c.id),
                   author: c.author_name || 'Anonymous',
                   content: c.content,
-                  date: new Date(c.created_at).toLocaleDateString(),
+                  date: c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                   avatar: c.author_avatar,
                   userId: c.user_id
                 }));

@@ -549,8 +549,8 @@ const ArticleDetail = () => {
               "@type": "NewsArticle",
               "headline": article.title,
               "image": [article.image],
-              "datePublished": new Date(article.date).toISOString(),
-              "dateModified": new Date(article.date).toISOString(),
+              "datePublished": article.date ? (isNaN(new Date(article.date).getTime()) ? new Date().toISOString() : new Date(article.date).toISOString()) : new Date().toISOString(),
+              "dateModified": article.date ? (isNaN(new Date(article.date).getTime()) ? new Date().toISOString() : new Date(article.date).toISOString()) : new Date().toISOString(),
               "author": [{
                 "@type": "Person",
                 "name": article.author,

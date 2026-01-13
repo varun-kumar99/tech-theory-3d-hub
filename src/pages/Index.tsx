@@ -55,7 +55,7 @@ const Index = () => {
 
   const sortedArticles = articleService.sortArticles(allArticles);
   const heroArticles = sortedArticles.slice(0, 8);
-  const trendingArticles = sortedArticles.slice(8);
+  const trendingArticles = sortedArticles.slice(8, 18); // Show only the latest 10 after hero articles
 
   // Helper to get recent articles by category or subcategory
   const getArticlesByFilter = (filterFn: (a: Article) => boolean) => {

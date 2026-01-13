@@ -31,6 +31,7 @@ const SearchPage = () => {
   const [allArticles, setAllArticles] = useState<Article[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(15);
   const { toggleLike, isArticleLiked } = useLikes();
 
   const handleToggleLike = (e: React.MouseEvent, article: Article) => {
@@ -116,6 +117,7 @@ const SearchPage = () => {
     }
 
     setFilteredArticles(filtered);
+    setVisibleCount(15); // Reset visible count when filters change
   }, [searchQuery, selectedCategories, selectedTags, sortBy, allArticles]);
 
   const handleSearch = (query: string) => {
@@ -378,143 +380,159 @@ const SearchPage = () => {
 
               {/* Results Grid */}
               {filteredArticles.length > 0 ? (
-                <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-8"}>
-                  {filteredArticles.map((article) => (
-                    <article key={article.id} className="group cursor-pointer h-full">
-                      <Link to={`/article/${article.id}`} className="block h-full">
-                        {viewMode === 'grid' ? (
-                          // 3-Column Overlay Design for Grid View
-                          <div className="relative aspect-[4/3] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-                            {/* Image Background */}
-                            <img
-                              src={article.image}
-                              alt={article.title}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                            
-                            {/* Gradient Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
-                            
-                            {/* Content Overlay */}
-                            <div className="absolute bottom-0 left-0 w-full p-4 md:p-5">
-                              <h3 className="text-white font-bold text-lg leading-tight drop-shadow-md line-clamp-3">
-                                {article.title}
-                              </h3>
-                            </div>
+                <>
+                  <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-8"}>
+                    {filteredArticles.slice(0, visibleCount).map((article) => (
+                      <article key={article.id} className="group cursor-pointer h-full">
+                        <Link to={`/article/${article.id}`} className="block h-full">
+                          {viewMode === 'grid' ? (
+                            // 3-Column Overlay Design for Grid View
+                            <div className="relative aspect-[4/3] rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                              {/* Image Background */}
+                              <img
+                                src={article.image}
+                                alt={article.title}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                              
+                              {/* Gradient Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
+                              
+                              {/* Content Overlay */}
+                              <div className="absolute bottom-0 left-0 w-full p-4 md:p-5">
+                                <h3 className="text-white font-bold text-lg leading-tight drop-shadow-md line-clamp-3">
+                                  {article.title}
+                                </h3>
+                              </div>
 
-                            {/* Hover Actions (Optional, but good for UX) */}
-                            <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <button 
-                                className={cn(
-                                  "p-2 backdrop-blur-sm rounded-full transition-colors",
-                                  isArticleLiked(article) 
-                                    ? "bg-red-500 hover:bg-red-600" 
-                                    : "bg-black/50 hover:bg-black/70"
-                                )}
-                                onClick={(e) => handleToggleLike(e, article)}
-                              >
-                                <Heart className={cn(
-                                  "w-3.5 h-3.5 text-white",
-                                  isArticleLiked(article) && "fill-current"
-                                )} />
-                              </button>
-                              <div 
-                                className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
-                                onClick={(e) => e.preventDefault()}
-                              >
-                                <BookmarkButton 
-                                  article={article} 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="p-0 h-3.5 w-3.5 hover:bg-transparent text-white hover:text-white"
-                                />
+                              {/* Hover Actions (Optional, but good for UX) */}
+                              <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <button 
+                                  className={cn(
+                                    "p-2 backdrop-blur-sm rounded-full transition-colors",
+                                    isArticleLiked(article) 
+                                      ? "bg-red-500 hover:bg-red-600" 
+                                      : "bg-black/50 hover:bg-black/70"
+                                  )}
+                                  onClick={(e) => handleToggleLike(e, article)}
+                                >
+                                  <Heart className={cn(
+                                    "w-3.5 h-3.5 text-white",
+                                    isArticleLiked(article) && "fill-current"
+                                  )} />
+                                </button>
+                                <div 
+                                  className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
+                                  onClick={(e) => e.preventDefault()}
+                                >
+                                  <BookmarkButton 
+                                    article={article} 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="p-0 h-3.5 w-3.5 hover:bg-transparent text-white hover:text-white"
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          // Original List View Design
-                          <div className="flex flex-col md:flex-row gap-6 items-start">
-                            {/* Image Section */}
-                            <div className="w-full md:w-[320px] flex-shrink-0 relative overflow-hidden rounded-lg">
-                              <div className="aspect-video relative">
-                                <img
-                                  src={article.image}
-                                  alt={article.title}
-                                  className="w-full h-full object-cover bg-muted transition-transform duration-500 group-hover:scale-105"
-                                />
-                                <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                  <button 
-                                    className={cn(
-                                      "p-2 backdrop-blur-sm rounded-full transition-colors",
-                                      isArticleLiked(article) 
-                                        ? "bg-red-500 hover:bg-red-600" 
-                                        : "bg-black/50 hover:bg-black/70"
-                                    )}
-                                    onClick={(e) => handleToggleLike(e, article)}
-                                  >
-                                    <Heart className={cn(
-                                      "w-3.5 h-3.5 text-white",
-                                      isArticleLiked(article) && "fill-current"
-                                    )} />
-                                  </button>
-                                  <div 
-                                    className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
-                                    onClick={(e) => e.preventDefault()}
-                                  >
-                                    <BookmarkButton 
-                                      article={article} 
-                                      size="sm" 
-                                      variant="ghost" 
-                                      className="p-0 h-3.5 w-3.5 hover:bg-transparent text-white hover:text-white"
-                                    />
+                          ) : (
+                            // Original List View Design
+                            <div className="flex flex-col md:flex-row gap-6 items-start">
+                              {/* Image Section */}
+                              <div className="w-full md:w-[320px] flex-shrink-0 relative overflow-hidden rounded-lg">
+                                <div className="aspect-video relative">
+                                  <img
+                                    src={article.image}
+                                    alt={article.title}
+                                    className="w-full h-full object-cover bg-muted transition-transform duration-500 group-hover:scale-105"
+                                  />
+                                  <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <button 
+                                      className={cn(
+                                        "p-2 backdrop-blur-sm rounded-full transition-colors",
+                                        isArticleLiked(article) 
+                                          ? "bg-red-500 hover:bg-red-600" 
+                                          : "bg-black/50 hover:bg-black/70"
+                                      )}
+                                      onClick={(e) => handleToggleLike(e, article)}
+                                    >
+                                      <Heart className={cn(
+                                        "w-3.5 h-3.5 text-white",
+                                        isArticleLiked(article) && "fill-current"
+                                      )} />
+                                    </button>
+                                    <div 
+                                      className="p-2 bg-black/50 backdrop-blur-sm rounded-full hover:bg-black/70 transition-colors"
+                                      onClick={(e) => e.preventDefault()}
+                                    >
+                                      <BookmarkButton 
+                                        article={article} 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="p-0 h-3.5 w-3.5 hover:bg-transparent text-white hover:text-white"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Content Section */}
+                              <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
+                                <div>
+                                  <div className="flex items-center space-x-2 mb-2 text-xs text-muted-foreground">
+                                    <span className="uppercase tracking-wide text-primary font-bold">
+                                      {article.category}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{article.date}</span>
+                                  </div>
+                                  
+                                  <h3 className="text-xl md:text-2xl font-bold leading-tight text-foreground group-hover:text-primary transition-colors mb-3">
+                                    {article.title}
+                                  </h3>
+                                  
+                                  <p className="text-muted-foreground leading-relaxed mb-4 text-sm md:text-base line-clamp-2">
+                                    {article.excerpt}
+                                  </p>
+                                </div>
+                                
+                                <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto">
+                                  <div className="flex items-center space-x-4">
+                                    <span className="font-medium text-foreground">By {article.author}</span>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1">
+                                       {article.readTime}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {article.tags?.slice(0, 3).map((tag) => (
+                                      <Badge key={tag} variant="outline" className="text-[10px] h-5 px-1.5">
+                                        {tag}
+                                      </Badge>
+                                    ))}
                                   </div>
                                 </div>
                               </div>
                             </div>
-                            
-                            {/* Content Section */}
-                            <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
-                              <div>
-                                <div className="flex items-center space-x-2 mb-2 text-xs text-muted-foreground">
-                                  <span className="uppercase tracking-wide text-primary font-bold">
-                                    {article.category}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{article.date}</span>
-                                </div>
-                                
-                                <h3 className="text-xl md:text-2xl font-bold leading-tight text-foreground group-hover:text-primary transition-colors mb-3">
-                                  {article.title}
-                                </h3>
-                                
-                                <p className="text-muted-foreground leading-relaxed mb-4 text-sm md:text-base line-clamp-2">
-                                  {article.excerpt}
-                                </p>
-                              </div>
-                              
-                              <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto">
-                                <div className="flex items-center space-x-4">
-                                  <span className="font-medium text-foreground">By {article.author}</span>
-                                  <span>•</span>
-                                  <span className="flex items-center gap-1">
-                                     {article.readTime}
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {article.tags?.slice(0, 3).map((tag) => (
-                                    <Badge key={tag} variant="outline" className="text-[10px] h-5 px-1.5">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </Link>
-                    </article>
-                  ))}
-                </div>
+                          )}
+                        </Link>
+                      </article>
+                    ))}
+                  </div>
+
+                  {/* Load More Button */}
+                  {visibleCount < filteredArticles.length && (
+                    <div className="mt-12 flex justify-center">
+                      <Button 
+                        onClick={() => setVisibleCount(prev => prev + 9)}
+                        variant="outline"
+                        size="lg"
+                        className="min-w-[200px] border-primary text-primary hover:bg-primary hover:text-white transition-all duration-300"
+                      >
+                        Load More Posts
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-12">
                   <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
