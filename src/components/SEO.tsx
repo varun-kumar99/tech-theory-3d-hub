@@ -37,7 +37,7 @@ const SEO = ({
   const metaDescription = description || defaultDescription;
   
   // Base URL for canonical tags - replace with your actual domain
-  const baseUrl = 'https://tech-theory.com';
+  const baseUrl = 'https://techtheory.co.in';
   const canonicalUrl = canonical || `${baseUrl}${window.location.pathname}${window.location.search}`;
 
   return (
