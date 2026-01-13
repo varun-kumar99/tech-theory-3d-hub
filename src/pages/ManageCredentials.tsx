@@ -173,7 +173,7 @@ const ManageCredentials = () => {
     }
 
     try {
-      const email = newUser.email || `${newUser.username}@techtheory.com`;
+      const email = newUser.email || `${newUser.username}@techtheory.co.in`;
       
       await userService.addUser({
         ...newUser,
