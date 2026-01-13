@@ -1,5 +1,4 @@
-import { Heart, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Heart, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { BookmarkButton } from "./BookmarkButton";
 import { Article } from "@/services/articleService";
@@ -14,9 +13,7 @@ interface NewsGridProps {
 }
 
 const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search", isLoading = false }: NewsGridProps) => {
-  const [currentPage, setCurrentPage] = useState(1);
   const { toggleLike, isArticleLiked } = useLikes();
-  const itemsPerPage = 12;
 
   const handleToggleLike = (e: React.MouseEvent, article: Article) => {
     e.preventDefault();
@@ -57,22 +54,6 @@ const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search", isLoadi
     return null;
   }
 
-  const totalPages = Math.ceil(articles.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentArticles = articles.slice(startIndex, startIndex + itemsPerPage);
-
-  const nextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  const prevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
   return (
     <section className="pb-16 pt-0">
       <div className="container mx-auto px-4">
@@ -89,7 +70,7 @@ const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search", isLoadi
 
           {/* Engadget-style article list with alternating layout */}
           <div className="space-y-8">
-            {currentArticles.map((article) => {
+            {articles.map((article) => {
               return (
                 <article key={article.id} className="group cursor-pointer">
                   <Link to={`/article/${article.id}`} className="block">
@@ -101,6 +82,7 @@ const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search", isLoadi
                             src={article.image}
                             alt={article.title}
                             className="w-full h-full object-cover bg-muted transition-transform duration-500 group-hover:scale-105"
+                            loading="lazy"
                           />
 
                           {/* Action Buttons - Hidden on mobile, visible on desktop hover */}
@@ -170,46 +152,6 @@ const NewsGrid = ({ articles, title = "Latest", viewAllLink = "/search", isLoadi
               );
             })}
           </div>
-
-          {/* Minimal Pagination - Only show if more than 1 page */}
-          {totalPages > 1 && (
-            <div className="mt-16 flex items-center justify-center space-x-8">
-              {currentPage > 1 && (
-                <button
-                  onClick={prevPage}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors duration-200"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Prev</span>
-                </button>
-              )}
-
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-8 h-8 text-sm font-medium rounded transition-colors duration-200 ${currentPage === page
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-
-              {currentPage < totalPages && (
-                <button
-                  onClick={nextPage}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors duration-200"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </section>

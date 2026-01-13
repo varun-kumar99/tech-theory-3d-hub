@@ -1,14 +1,18 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
+
+# Disallow administrative and private pages
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /profile
+Disallow: /profile/*
+Disallow: /bookmarks
+Disallow: /manage-credentials
+Disallow: /create-article
+
+# Host
+Host: https://tech-theory.com
+
+# Sitemaps
+Sitemap: https://tech-theory.com/sitemap.xml

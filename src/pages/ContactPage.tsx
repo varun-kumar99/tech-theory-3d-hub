@@ -2,12 +2,18 @@ import { useNavigate, Link } from "react-router-dom";
 import { Facebook, Twitter, Instagram, Youtube } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const ContactPage = () => {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO 
+        title="Contact Us"
+        description="Get in touch with the TECH Theory team. We welcome your tips, feedback, and inquiries."
+        keywords="contact tech theory, tech news tips, advertising inquiries"
+      />
       <Navbar />
       
       <main className="flex-grow pt-24 pb-16 px-4">

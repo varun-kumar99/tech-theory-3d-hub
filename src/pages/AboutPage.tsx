@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Facebook, Twitter, Mail, Github, Linkedin } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -7,6 +8,11 @@ import { Link } from "react-router-dom";
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
+      <SEO 
+        title="About Us"
+        description="Learn more about TECH Theory, your premier destination for technology coverage, digital innovation, and automotive engineering."
+        keywords="about tech theory, tech news mission, technology journalists"
+      />
       <Navbar />
       
       <main className="flex-grow pt-8 pb-20 px-4 sm:px-6 lg:px-8">

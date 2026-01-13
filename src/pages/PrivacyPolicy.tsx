@@ -1,9 +1,14 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const PrivacyPolicy = () => {
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO 
+        title="Privacy Policy"
+        description="Read the TECH Theory Privacy Policy to understand how we collect, use, and protect your personal information."
+      />
       <Navbar />
       <main className="flex-grow container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>

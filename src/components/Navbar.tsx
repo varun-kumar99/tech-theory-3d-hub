@@ -368,7 +368,7 @@ const Navbar = () => {
                             onClick={() => handleSuggestionClick(article.id)}
                         >
                             {article.image && (
-                                <img src={article.image} alt="" className="w-10 h-10 object-cover rounded" />
+                                <img src={article.image} alt={article.title} className="w-10 h-10 object-cover rounded" />
                             )}
                             <div className="flex-1 min-w-0">
                                 <h4 className="text-sm font-medium truncate text-foreground">{article.title}</h4>

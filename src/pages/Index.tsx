@@ -4,6 +4,7 @@ import HeroSection from "@/components/HeroSection";
 import NewsGrid from "@/components/NewsGrid";
 import CategorySection from "@/components/CategorySection";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { articleService, Article } from "@/services/articleService";
 
 const Index = () => {
@@ -86,6 +87,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO 
+        title="Home"
+        description="Stay ahead with the latest tech news, reviews, and insights. Your premier destination for technology coverage."
+        keywords="tech news, reviews, technology, gadgets, future tech"
+      />
       <Navbar />
       <main className="pt-6 pb-12 md:pb-20">
         <HeroSection articles={heroArticles} isLoading={isLoading} />
@@ -98,7 +104,7 @@ const Index = () => {
           </div>
         )}
 
-        <div className="space-y-12">
+        <div className="space-y-4">
           <CategorySection
             articles={techArticles}
             title="Tech"

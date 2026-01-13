@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { Link, useSearchParams } from "react-router-dom";
 import { articleService, Article } from "@/services/articleService";
 import { NAV_CATEGORIES } from "@/constants/categories";
@@ -153,6 +154,11 @@ const SearchPage = () => {
 
   return (
     <div className="min-h-screen">
+      <SEO 
+        title={searchQuery ? `Search: ${searchQuery}` : "Search Articles"}
+        description={`Search for the latest tech news, reviews and articles on TECH Theory.`}
+        keywords="tech search, article search, technology reviews"
+      />
       <Navbar />
       
       <main className="pt-20 pb-20">

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { articleService, Article, Comment } from "@/services/articleService";
 import { userService, User } from "@/services/userService";
 import AdUnit from "@/components/AdUnit";
@@ -532,6 +533,65 @@ const ArticleDetail = () => {
 
   return (
     <div className="min-h-screen">
+      <SEO 
+        title={article.title}
+        description={article.excerpt}
+        keywords={article.tags?.join(', ')}
+        ogTitle={article.title}
+        ogDescription={article.excerpt}
+        ogImage={article.image}
+        ogUrl={window.location.href}
+        type="article"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "NewsArticle",
+              "headline": article.title,
+              "image": [article.image],
+              "datePublished": new Date(article.date).toISOString(),
+              "dateModified": new Date(article.date).toISOString(),
+              "author": [{
+                "@type": "Person",
+                "name": article.author,
+                "url": `${window.location.origin}/author/${article.authorId}`
+              }],
+              "publisher": {
+                "@type": "Organization",
+                "name": "TECH Theory",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": `${window.location.origin}/logo.png`
+                }
+              },
+              "description": article.excerpt
+            },
+            {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Home",
+                  "item": window.location.origin
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": article.category,
+                  "item": `${window.location.origin}/category/${article.category.toLowerCase()}`
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 3,
+                  "name": article.title,
+                  "item": window.location.href
+                }
+              ]
+            }
+          ]
+        }}
+      />
       <Navbar />
 
       {/* Reading Progress Bar */}

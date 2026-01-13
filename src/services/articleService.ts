@@ -177,29 +177,6 @@ export const articleService = {
     }
   },
 
-  // Helper to sort articles by priority, trending, and date
-  sortArticles: (articles: Article[]): Article[] => {
-    return [...articles].sort((a, b) => {
-      // 1. Sort by Priority
-      const priorityMap = { high: 3, medium: 2, low: 1 };
-      const priorityA = priorityMap[a.priority || 'medium'];
-      const priorityB = priorityMap[b.priority || 'medium'];
-      
-      if (priorityA !== priorityB) {
-        return priorityB - priorityA;
-      }
-      
-      // 2. Sort by Trending
-      if (a.isTrending && !b.isTrending) return -1;
-      if (!a.isTrending && b.isTrending) return 1;
-      
-      // 3. Sort by Date (newest first)
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return dateB - dateA;
-    });
-  },
-
   getAllArticles: async (): Promise<Article[]> => {
     let supabaseArticles: Article[] = [];
     
@@ -271,7 +248,7 @@ export const articleService = {
     }
 
     // Sort combined articles by priority, then trending, then date
-    return articleService.sortArticles(combined);
+    return combined;
   },
 
   seedInitialArticles: async (): Promise<void> => {
@@ -474,8 +451,7 @@ export const articleService = {
   },
 
   getPriorityArticles: async (): Promise<Article[]> => {
-    const articles = await articleService.getPublishedArticles();
-    return articleService.sortArticles(articles);
+    return await articleService.getPublishedArticles();
   },
 
   getArticleByTitle: async (title: string): Promise<Article | undefined> => {

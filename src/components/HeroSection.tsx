@@ -91,6 +91,8 @@ const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps)
                   src={latestStories[0].image}
                   alt={latestStories[0].title}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="eager"
+                  fetchPriority="high"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
@@ -118,6 +120,7 @@ const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps)
                       src={story.image}
                       alt={story.title}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
@@ -138,6 +141,7 @@ const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps)
                         src={story.image}
                         alt={story.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     </div>
                     <div className="flex-1 flex flex-col justify-center">
@@ -166,6 +170,7 @@ const HeroSection = ({ articles, isLoading: externalLoading }: HeroSectionProps)
                     src={story.image}
                     alt={story.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 

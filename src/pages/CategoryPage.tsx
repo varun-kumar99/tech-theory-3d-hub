@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { articleService, Article } from "@/services/articleService";
 import { Link } from "react-router-dom";
 import { useLikes } from "@/hooks/useLikes";
@@ -205,6 +206,13 @@ const CategoryPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO 
+        title={currentCategory}
+        description={`Latest ${currentCategory} news, reviews and updates on TECH Theory.`}
+        keywords={`${currentCategory.toLowerCase()}, tech news, reviews, tech updates`}
+        ogTitle={`${currentCategory} | TECH Theory`}
+        ogDescription={`Stay updated with the latest ${currentCategory} news and reviews on TECH Theory.`}
+      />
       <Navbar />
       
       <main className="pt-8 pb-16">
