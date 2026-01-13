@@ -15,9 +15,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { articleService } from "@/services/articleService";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 const ProfilePage = () => {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, updateUser, logout, isLoading: authLoading } = useAuth();
@@ -250,7 +251,7 @@ const ProfilePage = () => {
       <Navbar />
       
       <main className="pt-20 pb-20">
-        <div className="container mx-auto px-4 max-w-6xl">
+        <div className="container mx-auto px-4">
           {/* Profile Header */}
           <div className="mb-8">
             <Card className="border-none shadow-none bg-transparent">
@@ -281,9 +282,19 @@ const ProfilePage = () => {
                   <div className="flex gap-2">
                     <Button 
                       variant="outline" 
-                      onClick={() => {
-                        logout();
-                        navigate("/");
+                      onClick={async () => {
+                        try {
+                          await logout();
+                          toast({
+                            title: "Logged out",
+                            description: "You have been successfully logged out."
+                          });
+                          navigate("/");
+                        } catch (error) {
+                          console.error("Logout error:", error);
+                          localStorage.clear();
+                          window.location.href = "/";
+                        }
                       }}
                       className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >

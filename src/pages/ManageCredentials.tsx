@@ -13,9 +13,11 @@ import { toast } from "@/hooks/use-toast";
 import { PlusCircle, Trash2, Shield, User as UserIcon, ArrowLeft, Eye, EyeOff, Database, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ManageCredentials = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -155,7 +157,8 @@ const ManageCredentials = () => {
       description: `Created ${successCount} users. Skipped/Failed ${failCount}. You have been logged out.`,
     });
     
-    // We are likely logged out now.
+    // Clear local auth state and reload
+    await logout();
     window.location.reload();
   };
 
@@ -216,7 +219,7 @@ const ManageCredentials = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button variant="outline" size="icon" onClick={() => navigate("/admin/dashboard")}>

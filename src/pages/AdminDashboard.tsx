@@ -32,10 +32,8 @@ import {
   LogOut,
   Settings,
   Shield,
-  PlusCircle,
-  Upload
+  PlusCircle
 } from "lucide-react";
-import Papa from "papaparse";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { userService, User } from "@/services/userService";
@@ -64,121 +62,6 @@ const AdminDashboard = () => {
   });
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-
-  const [isImporting, setIsImporting] = useState(false);
-
-  const handleImportCSV = async () => {
-    setIsImporting(true);
-    
-    // Get current user name for author field
-    let currentAuthorName = 'Admin';
-    if (authUser?.user_metadata?.full_name) {
-        currentAuthorName = authUser.user_metadata.full_name;
-    } else {
-        const localAuth = localStorage.getItem("admin-auth");
-        if (localAuth) {
-            try {
-                const parsed = JSON.parse(localAuth);
-                if (parsed.user && parsed.user.name) {
-                    currentAuthorName = parsed.user.name;
-                }
-            } catch (e) {
-                console.error("Error parsing admin-auth", e);
-            }
-        }
-    }
-
-    try {
-      const response = await fetch('/Article%20data.csv');
-      if (!response.ok) throw new Error('Failed to fetch CSV file');
-      
-      const csvText = await response.text();
-      
-      Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          let successCount = 0;
-          let failCount = 0;
-
-          for (const [index, row] of (results.data as any[]).entries()) {
-            try {
-              // Parse complex fields
-              let tags: string[] = [];
-              if (row.tags) {
-                if (row.tags.startsWith('{')) { // Postgres array format {tag1,tag2}
-                  tags = row.tags.replace(/^\{|\}$/g, '').split(',').map((t: string) => t.replace(/"/g, ''));
-                } else if (row.tags.startsWith('[')) { // JSON format
-                  try { tags = JSON.parse(row.tags); } catch { tags = [row.tags]; }
-                } else {
-                  tags = row.tags.split(',').map((t: string) => t.trim());
-                }
-              }
-
-              let localImages = {};
-              if (row.local_images) {
-                try { localImages = JSON.parse(row.local_images); } catch { console.warn('Failed to parse local_images'); }
-              }
-
-              const article: Article = {
-                id: String(Date.now() + index), // Generate unique ID for each article
-                title: row.title,
-                content: row.content,
-                excerpt: row.excerpt,
-                category: row.category,
-                subCategory: row.subcategory,
-                status: row.status as any || 'draft',
-                author: currentAuthorName,
-                date: row.created_at || new Date().toISOString(),
-                image: row.image_url,
-                views: parseInt(row.views || '0'),
-                likes: parseInt(row.likes || '0'),
-                readTime: row.read_time,
-                tags: tags,
-                localImages: localImages,
-                isTrending: row.is_trending === 'true' || row.is_trending === true,
-                priority: row.priority as any || 'medium',
-                comments: []
-              };
-
-              await articleService.saveArticle(article);
-              successCount++;
-            } catch (err) {
-              console.error('Failed to import article:', row.title, err);
-              failCount++;
-            }
-          }
-
-          setArticles(await articleService.getAllArticles());
-          setIsImporting(false);
-          
-          toast({
-            title: "Import Complete",
-            description: `Successfully imported ${successCount} articles. ${failCount > 0 ? `${failCount} failed.` : ''}`,
-            variant: failCount > 0 ? "destructive" : "default"
-          });
-        },
-        error: (error: any) => {
-          console.error('CSV Parse Error:', error);
-          setIsImporting(false);
-          toast({
-            title: "Import Failed",
-            description: "Failed to parse CSV file",
-            variant: "destructive"
-          });
-        }
-      });
-    } catch (error) {
-      console.error('Import Error:', error);
-      setIsImporting(false);
-      toast({
-        title: "Import Failed",
-        description: "Failed to load CSV file",
-        variant: "destructive"
-      });
-    }
-  };
 
   useEffect(() => {
     if (authLoading || !isUserFullyLoaded) {
@@ -222,12 +105,8 @@ const AdminDashboard = () => {
     }
   }, [navigate, authUser, authLoading, isUserFullyLoaded]);
 
-  const handleLogout = () => {
-    if (authUser) {
-      logout();
-    } else {
-      localStorage.removeItem("admin-auth");
-    }
+  const handleLogout = async () => {
+    await logout();
     toast({
       title: "Success",
       description: "Logged out successfully"
@@ -364,19 +243,19 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
               <p className="text-gray-600 dark:text-gray-400">Manage your content and users</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Button variant="outline" size="sm" onClick={() => navigate('/admin/credentials')}>
                 <Shield className="w-4 h-4 mr-2" />
-                Credentials
+                <span className="whitespace-nowrap">Credentials</span>
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                <span className="whitespace-nowrap">Logout</span>
               </Button>
             </div>
           </div>
@@ -456,7 +335,10 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {articles.slice(0, 3).map((article) => (
+                  {[...articles]
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .slice(0, 3)
+                    .map((article) => (
                     <div key={article.id} className="flex items-center justify-between">
                       <div>
                         <h4 className="font-medium">{article.title}</h4>
@@ -481,10 +363,6 @@ const AdminDashboard = () => {
                 <p className="text-gray-600 dark:text-gray-400">Manage all articles, trending status, and priorities</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleImportCSV} disabled={isImporting}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  {isImporting ? 'Importing...' : 'Import CSV'}
-                </Button>
                 <Button onClick={() => navigate('/admin/create-article')}>
                   <PlusCircle className="w-4 h-4 mr-2" />
                   Add Article
@@ -493,106 +371,233 @@ const AdminDashboard = () => {
             </div>
 
             <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Author</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Views</TableHead>
-                      <TableHead>Trending</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {articles.map((article) => (
-                      <TableRow key={article.id}>
-                        <TableCell className="font-medium">{article.title}</TableCell>
-                        <TableCell>{article.author}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={article.status}
-                            onValueChange={(value: Article['status']) => 
-                              updateArticleStatus(article.id, value)
-                            }
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="published">Published</SelectItem>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>{article.category}</TableCell>
-                        <TableCell>{article.views.toLocaleString()}</TableCell>
-                        <TableCell>
+              <CardContent className="p-0 border-none bg-transparent">
+                {/* Desktop View: Table */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Author</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Views</TableHead>
+                        <TableHead>Trending</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {articles.map((article) => (
+                        <TableRow key={article.id}>
+                          <TableCell className="font-medium">{article.title}</TableCell>
+                          <TableCell>{article.author}</TableCell>
+                          <TableCell>
+                            <Select
+                              value={article.status}
+                              onValueChange={(value: Article['status']) => 
+                                updateArticleStatus(article.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="published">Published</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>{article.category}</TableCell>
+                          <TableCell>{article.views.toLocaleString()}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant={article.isTrending ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => updateArticleTrending(article.id, !article.isTrending)}
+                            >
+                              <Star className="w-3 h-3 mr-1" />
+                              {article.isTrending ? "Trending" : "Set Trending"}
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={article.priority || 'medium'}
+                              onValueChange={(value: Article['priority']) => 
+                                updateArticlePriority(article.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/article/${article.id}`)}>
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/edit-article/${article.id}`)}>
+                                <Edit3 className="w-4 h-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete the article.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteArticle(article.id)} className="bg-red-600 hover:bg-red-700">
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile/Tablet View: Image-focused grid cards */}
+                <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+                  {articles.map((article) => (
+                    <div key={article.id} className="group flex flex-col">
+                      {/* Image-focused card */}
+                      <div 
+                        className="relative aspect-video rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800 cursor-pointer"
+                        onClick={() => navigate(`/admin/edit-article/${article.id}`)}
+                      >
+                        <img 
+                          src={article.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&h=400&fit=crop"} 
+                          alt={article.title} 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {/* Gradient Overlay for Title */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-4">
+                          <h3 className="text-white font-bold text-lg leading-tight line-clamp-2 mb-2">
+                            {article.title}
+                          </h3>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-300 text-xs">
+                            <span className="font-medium text-blue-400">{article.author}</span>
+                            <span>•</span>
+                            <span>{article.category}</span>
+                            <span>•</span>
+                            <span>{article.views.toLocaleString()} views</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Bar below image */}
+                      <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+                        {/* Status and Priority Controls */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 px-1">Status</span>
+                            <Select
+                              value={article.status}
+                              onValueChange={(value: Article['status']) => updateArticleStatus(article.id, value)}
+                            >
+                              <SelectTrigger className={`h-8 text-xs ${getStatusColor(article.status)} border-none`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="published">Published</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 px-1">Priority</span>
+                            <Select
+                              value={article.priority || 'medium'}
+                              onValueChange={(value: Article['priority']) => updateArticlePriority(article.id, value)}
+                            >
+                              <SelectTrigger className={`h-8 text-xs ${getPriorityColor(article.priority || 'medium')} border-none`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="low">Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Bottom Icons Row */}
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-gray-700">
                           <Button
-                            variant={article.isTrending ? "default" : "outline"}
+                            variant="ghost"
                             size="sm"
+                            className={`h-8 px-2 text-xs ${article.isTrending ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400'}`}
                             onClick={() => updateArticleTrending(article.id, !article.isTrending)}
                           >
-                            <Star className="w-3 h-3 mr-1" />
-                            {article.isTrending ? "Trending" : "Set Trending"}
+                            <Star className={`w-4 h-4 mr-1 ${article.isTrending ? 'fill-yellow-600' : ''}`} />
+                            {article.isTrending ? 'Trending' : 'Set Trending'}
                           </Button>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={article.priority || 'medium'}
-                            onValueChange={(value: Article['priority']) => 
-                              updateArticlePriority(article.id, value)
-                            }
-                          >
-                            <SelectTrigger className="w-20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="high">High</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="low">Low</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm">
-                              <Edit3 className="w-3 h-3" />
+                          
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-gray-500"
+                              onClick={() => navigate(`/article/${article.id}`)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-gray-500"
+                              onClick={() => navigate(`/admin/edit-article/${article.id}`)}
+                            >
+                              <Edit3 className="w-4 h-4" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button 
-                                  variant="outline" 
-                                  size="sm"
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the article.
-                                  </AlertDialogDescription>
+                                  <AlertDialogTitle>Delete Article?</AlertDialogTitle>
+                                  <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteArticle(article.id)} className="bg-red-600 hover:bg-red-700">
-                                    Delete
-                                  </AlertDialogAction>
+                                  <AlertDialogAction onClick={() => deleteArticle(article.id)} className="bg-red-600">Delete</AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

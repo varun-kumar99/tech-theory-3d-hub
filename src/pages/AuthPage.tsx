@@ -35,7 +35,6 @@ const AuthPage = () => {
     try {
       const success = await login(loginData.email, loginData.password);
       if (success) {
-        toast.success("Welcome back!");
         navigate("/");
       } else {
         toast.error("Invalid credentials. Try demo@example.com / password");
@@ -60,7 +59,6 @@ const AuthPage = () => {
     try {
       const success = await loginWithGoogle();
       if (success) {
-        toast.success("Successfully signed in with Google!");
         navigate("/");
       }
     } catch (error) {

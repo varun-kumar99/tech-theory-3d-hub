@@ -63,7 +63,6 @@ const SignUp = () => {
 
       if (data.session) {
         // User is auto-confirmed and logged in
-        toast.success("Account created successfully!");
         navigate("/");
       } else if (data.user) {
         // User created but needs verification
@@ -112,7 +111,6 @@ const SignUp = () => {
         };
         
         localStorage.setItem('user', JSON.stringify(mockUser));
-        toast.success("Email verified! Welcome to Tech Theory.");
         // Force reload to update AuthContext from localStorage
         window.location.href = "/";
         return;
@@ -139,7 +137,6 @@ const SignUp = () => {
           
         if (profileError) console.error("Error creating profile:", profileError);
 
-        toast.success("Email verified! Welcome to Tech Theory.");
         navigate("/");
       }
     } catch (error: any) {

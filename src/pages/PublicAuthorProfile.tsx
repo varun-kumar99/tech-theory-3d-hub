@@ -77,7 +77,7 @@ const PublicAuthorProfile = () => {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 py-20 text-center">
+        <div className="container mx-auto px-4 py-20 text-center max-w-5xl">
           <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-muted-foreground animate-pulse">Loading author profile...</p>
         </div>
@@ -90,7 +90,7 @@ const PublicAuthorProfile = () => {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <div className="container mx-auto px-4 py-20 text-center">
+        <div className="container mx-auto px-4 py-20 text-center max-w-5xl">
           <h2 className="text-2xl font-bold mb-4">Author not found</h2>
           <Button onClick={() => navigate('/')}>Go Home</Button>
         </div>

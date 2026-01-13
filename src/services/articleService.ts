@@ -177,6 +177,29 @@ export const articleService = {
     }
   },
 
+  // Helper to sort articles by priority, trending, and date
+  sortArticles: (articles: Article[]): Article[] => {
+    return [...articles].sort((a, b) => {
+      // 1. Sort by Priority
+      const priorityMap = { high: 3, medium: 2, low: 1 };
+      const priorityA = priorityMap[a.priority || 'medium'];
+      const priorityB = priorityMap[b.priority || 'medium'];
+      
+      if (priorityA !== priorityB) {
+        return priorityB - priorityA;
+      }
+      
+      // 2. Sort by Trending
+      if (a.isTrending && !b.isTrending) return -1;
+      if (!a.isTrending && b.isTrending) return 1;
+      
+      // 3. Sort by Date (newest first)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+  },
+
   getAllArticles: async (): Promise<Article[]> => {
     let supabaseArticles: Article[] = [];
     
@@ -231,22 +254,24 @@ export const articleService = {
     }
 
     // If Supabase is not configured or failed, return local articles
+    let combined: Article[] = [];
     if (!isSupabaseConfigured() || supabaseArticles.length === 0) {
-      return localArticles;
-    }
+      combined = localArticles;
+    } else {
+      // Merge Supabase and Local articles, avoiding duplicates by title
+      combined = [...supabaseArticles];
+      const existingTitles = new Set(supabaseArticles.map(a => a.title.toLowerCase().trim()));
 
-    // Merge Supabase and Local articles, avoiding duplicates by title
-    const combined = [...supabaseArticles];
-    const existingTitles = new Set(supabaseArticles.map(a => a.title.toLowerCase().trim()));
-
-    for (const local of localArticles) {
-      const normalizedTitle = local.title.toLowerCase().trim();
-      if (!existingTitles.has(normalizedTitle)) {
-        combined.push(local);
+      for (const local of localArticles) {
+        const normalizedTitle = local.title.toLowerCase().trim();
+        if (!existingTitles.has(normalizedTitle)) {
+          combined.push(local);
+        }
       }
     }
 
-    return combined;
+    // Sort combined articles by priority, then trending, then date
+    return articleService.sortArticles(combined);
   },
 
   seedInitialArticles: async (): Promise<void> => {
@@ -450,22 +475,7 @@ export const articleService = {
 
   getPriorityArticles: async (): Promise<Article[]> => {
     const articles = await articleService.getPublishedArticles();
-    return articles.sort((a, b) => {
-      const priorityMap = { high: 3, medium: 2, low: 1 };
-      const priorityA = priorityMap[a.priority || 'medium'];
-      const priorityB = priorityMap[b.priority || 'medium'];
-      
-      // Sort by priority (descending)
-      if (priorityA !== priorityB) {
-        return priorityB - priorityA;
-      }
-      
-      // If priority matches, sort by trending
-      if (a.isTrending && !b.isTrending) return -1;
-      if (!a.isTrending && b.isTrending) return 1;
-      
-      return 0;
-    });
+    return articleService.sortArticles(articles);
   },
 
   getArticleByTitle: async (title: string): Promise<Article | undefined> => {

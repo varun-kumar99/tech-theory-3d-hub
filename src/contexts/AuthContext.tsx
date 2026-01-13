@@ -20,7 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   loginWithGoogle: () => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   addBookmark: (articleId: string | number) => void;
   removeBookmark: (articleId: string | number) => void;
@@ -415,11 +415,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
-    if (isSupabaseConfigured()) {
-      await supabase.auth.signOut();
+    try {
+      if (isSupabaseConfigured()) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error("Error during Supabase sign out:", error);
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('admin-auth');
     }
-    setUser(null);
-    localStorage.removeItem('user');
   };
 
   const updateUser = (updates: Partial<User>) => {

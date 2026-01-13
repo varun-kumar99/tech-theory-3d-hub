@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import { articleService, Article } from "@/services/articleService";
 import { userService, User } from "@/services/userService";
 import { NAV_CATEGORIES } from "@/constants/categories";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AuthorDashboard = () => {
   const navigate = useNavigate();
@@ -168,8 +169,10 @@ const AuthorDashboard = () => {
     checkAuthFunction();
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("admin-auth");
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
     toast({
       title: "Success",
       description: "Logged out successfully"
@@ -627,20 +630,20 @@ const AuthorDashboard = () => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Author Dashboard</h1>
               <p className="text-gray-600 dark:text-gray-400">
                 Welcome back, <span className="font-medium text-gray-900 dark:text-white">{currentUser?.name || "Author"}</span>
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-2 md:gap-4">
               <Button 
                 onClick={() => navigate('/admin/create-article')}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 <PlusCircle className="w-4 h-4 mr-2" />
-                New Article
+                <span className="whitespace-nowrap">New Article</span>
               </Button>
               <Button 
                 onClick={() => setIsAddingArticle(true)}
@@ -648,11 +651,11 @@ const AuthorDashboard = () => {
                 className="text-sm"
               >
                 <Edit3 className="w-4 h-4 mr-2" />
-                Quick Edit
+                <span className="whitespace-nowrap">Quick Edit</span>
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                <span className="whitespace-nowrap">Logout</span>
               </Button>
             </div>
           </div>
@@ -662,7 +665,7 @@ const AuthorDashboard = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList>
+          <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="articles">My Articles</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -753,87 +756,187 @@ const AuthorDashboard = () => {
           </TabsContent>
 
           <TabsContent value="articles" className="space-y-6">
-            <div className="grid gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-1 gap-6">
               {userArticles.map((article) => (
-                <Card 
-                  key={article.id}
-                  className="cursor-pointer hover:border-gray-400 transition-colors"
-                  onClick={() => handleEditArticle(article)}
-                >
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg">{article.title}</CardTitle>
-                        <CardDescription>
-                          {article.category} • 
-                          {article.date && ` Published on ${article.date} • `}
-                          {article.views.toLocaleString()} views • {article.likes} likes
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(article.status)}>
-                          {article.status}
-                        </Badge>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/article/${article.id}`);
-                          }}
-                        >
-                          <Eye className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditArticle(article);
-                          }}
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the article.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteArticle(article.id);
-                                }}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                <div key={article.id} className="group">
+                  {/* Mobile View: Image-focused card (based on second image) */}
+                  <div className="block sm:hidden relative aspect-video rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-800 mb-2">
+                    <img 
+                      src={article.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&h=400&fit=crop"} 
+                      alt={article.title} 
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Gradient Overlay for Title */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
+                      <h3 className="text-white font-bold text-lg leading-tight line-clamp-2">
+                        {article.title}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1 text-gray-300 text-xs">
+                        <span>{article.category}</span>
+                        <span>•</span>
+                        <span>{article.views.toLocaleString()} views</span>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-600 dark:text-gray-400 line-clamp-3">
-                      {article.excerpt || article.content}
-                    </p>
-                  </CardContent>
-                </Card>
+                  </div>
+
+                  {/* Desktop View: Original Card layout */}
+                  <Card 
+                    className="hidden sm:block cursor-pointer hover:border-gray-400 transition-colors"
+                    onClick={() => handleEditArticle(article)}
+                  >
+                    <CardHeader>
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg truncate sm:whitespace-normal">{article.title}</CardTitle>
+                          <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                            <span>{article.category}</span>
+                            <span className="hidden sm:inline">•</span>
+                            {article.date && (
+                              <>
+                                <span className="whitespace-nowrap">Published on {article.date}</span>
+                                <span className="hidden sm:inline">•</span>
+                              </>
+                            )}
+                            <span className="whitespace-nowrap">{article.views.toLocaleString()} views</span>
+                            <span className="hidden sm:inline">•</span>
+                            <span className="whitespace-nowrap">{article.likes} likes</span>
+                          </CardDescription>
+                        </div>
+                        
+                        {/* Desktop Actions */}
+                        <div className="hidden sm:flex items-center gap-2 self-start">
+                          <Badge className={`${getStatusColor(article.status)} whitespace-nowrap`}>
+                            {article.status}
+                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/article/${article.id}`);
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditArticle(article);
+                              }}
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the article.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteArticle(article.id);
+                                    }}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="hidden sm:block text-gray-600 dark:text-gray-400 line-clamp-3">
+                        {article.excerpt || article.content}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Mobile Actions Row: Icon-only bar below image */}
+                  <div className="flex sm:hidden items-center justify-between px-2 py-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-800 shadow-sm">
+                    <Badge className={`${getStatusColor(article.status)} text-[10px] h-5 px-2`}>
+                      {article.status}
+                    </Badge>
+                    <div className="flex items-center gap-4">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/article/${article.id}`);
+                        }}
+                      >
+                        <Eye className="w-5 h-5 text-gray-500" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditArticle(article);
+                        }}
+                      >
+                        <Edit3 className="w-5 h-5 text-gray-500" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteArticle(article.id);
+                              }}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </TabsContent>

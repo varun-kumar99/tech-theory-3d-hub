@@ -154,7 +154,7 @@
   }
 
   body {
-    @apply text-foreground;
+    @apply text-foreground overflow-x-hidden;
     background: hsl(var(--background));
     min-height: 100vh;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;

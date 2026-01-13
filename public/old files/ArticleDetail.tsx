@@ -14,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthDialog } from "@/components/AuthDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 interface RelatedArticle {
   id: string | number;
@@ -230,7 +229,7 @@ const ArticleDetail = () => {
 
   const handleLike = async () => {
     if (!article) return;
-
+    
     console.log("[ArticleDetail] Like button clicked", { currentLikes: article.likes, isLiked });
 
     // Optimistic update of count and state
@@ -238,7 +237,7 @@ const ArticleDetail = () => {
     const change = newIsLiked ? 1 : -1;
     setIsLiked(newIsLiked);
     setArticle(prev => prev ? { ...prev, likes: Math.max(0, prev.likes + change) } : null);
-
+    
     // Update article stats in DB
     const updated = await articleService.updateLikes(article.id, change);
 
@@ -280,12 +279,12 @@ const ArticleDetail = () => {
   useEffect(() => {
     const fetchArticleData = async () => {
       if (!id) return;
-
+      
       // Only show full page loader if we don't have article data from navigation state
       if (!location.state?.article) {
         setLoading(true);
       }
-
+      
       try {
         // Quick session cache: show cached article immediately on refresh
         const cacheKey = `cached_article_${id}`;
@@ -315,12 +314,12 @@ const ArticleDetail = () => {
 
         // Increment views if not already viewed in this session
         const sessionKey = `viewed-article-${id}`;
-
+        
         // Retry logic for fetching article
         let foundArticle = null;
         let attempts = 0;
         const maxAttempts = 3;
-
+        
         while (attempts < maxAttempts && !foundArticle) {
           attempts++;
           try {
@@ -330,13 +329,13 @@ const ArticleDetail = () => {
               await new Promise(resolve => setTimeout(resolve, 300 * attempts));
             }
           } catch (e) {
-            console.warn(`Attempt ${attempts} failed:`, e);
-            if (attempts < maxAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 300 * attempts));
-            }
+             console.warn(`Attempt ${attempts} failed:`, e);
+             if (attempts < maxAttempts) {
+               await new Promise(resolve => setTimeout(resolve, 300 * attempts));
+             }
           }
         }
-
+        
         if (foundArticle) {
           // update cache with fresh article data
           try {
@@ -447,7 +446,7 @@ const ArticleDetail = () => {
 
   useEffect(() => {
     lastScrollY.current = window.scrollY;
-
+    
     const handleScroll = () => {
       const scrollY = window.scrollY;
       const scrollDelta = scrollY - lastScrollY.current;
@@ -459,7 +458,7 @@ const ArticleDetail = () => {
         const totalHeight = element.clientHeight;
         const windowHeight = window.innerHeight;
         const elementTop = element.offsetTop;
-
+        
         if (scrollY > elementTop) {
           const progress = ((scrollY - elementTop) / (totalHeight - windowHeight + 400)) * 100;
           setReadingProgress(Math.min(100, Math.max(0, progress)));
@@ -482,7 +481,7 @@ const ArticleDetail = () => {
           // If sidebar is taller than viewport, slide it
           const minTop = viewportHeight - sidebarHeight - padding;
           const maxTop = navbarHeight;
-
+          
           let newTop = currentTop.current - scrollDelta;
           newTop = Math.max(minTop, Math.min(maxTop, newTop));
           currentTop.current = newTop;
@@ -515,17 +514,17 @@ const ArticleDetail = () => {
   if (!article) {
     // If we've tried to load and it's still null, and we have an ID, it means not found
     if (id) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center">
-          <Navbar />
-          <div className="text-center pt-20">
-            <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
-            <p className="mb-4">We couldn't find the article you're looking for.</p>
-            <Button onClick={() => navigate('/')}>Go Home</Button>
-          </div>
-          <Footer />
-        </div>
-      );
+       return (
+         <div className="min-h-screen flex flex-col items-center justify-center">
+           <Navbar />
+           <div className="text-center pt-20">
+             <h1 className="text-2xl font-bold mb-4">Article Not Found</h1>
+             <p className="mb-4">We couldn't find the article you're looking for.</p>
+             <Button onClick={() => navigate('/')}>Go Home</Button>
+           </div>
+           <Footer />
+         </div>
+       );
     }
     return <div>Loading...</div>;
   }
@@ -533,10 +532,10 @@ const ArticleDetail = () => {
   return (
     <div className="min-h-screen">
       <Navbar />
-
+      
       {/* Reading Progress Bar */}
       <div className="fixed top-0 left-0 w-full h-1 bg-secondary z-50">
-        <div
+        <div 
           className="h-full bg-primary transition-all duration-300"
           style={{ width: `${readingProgress}%` }}
         />
@@ -561,15 +560,15 @@ const ArticleDetail = () => {
                       <span className="text-base font-medium">Back</span>
                     </Button>
                     <span className="text-muted-foreground text-base">/</span>
-                    <span className="text-base font-bold uppercase tracking-tight text-primary">
+                    <span className="text-base font-bold uppercase tracking-tight text-blue-500">
                       {article.category}
                     </span>
                   </div>
-
+                  
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight text-foreground mb-6">
                     {article.title}
                   </h1>
-
+                  
                   <p className="text-lg text-muted-foreground leading-relaxed mb-6">
                     {article.excerpt}
                   </p>
@@ -588,33 +587,35 @@ const ArticleDetail = () => {
                         <span>{article.views.toLocaleString()} views</span>
                       </div>
                     </div>
-
+                    
                     {/* Action Buttons */}
                     <div className="flex items-center space-x-3">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={handleLike}
-                        className={cn("px-2 md:px-3", isLiked ? "text-red-500" : "")}
+                        className={isLiked ? "text-red-500" : ""}
                       >
-                        <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
-                        <span className="ml-1 text-xs md:text-sm hidden md:inline">{article.likes}</span>
+                        <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
+                        <span className="ml-1">{article.likes}</span>
                       </Button>
-
-                      <BookmarkButton
-                        article={article}
+                      
+                      <BookmarkButton 
+                        article={{
+                          id: article.id,
+                          title: article.title,
+                          category: article.category,
+                          image: article.image,
+                          author: article.author,
+                          date: article.date,
+                        }}
                         variant="minimal"
-                        className="text-muted-foreground hover:text-foreground px-2 md:px-3"
+                        className="text-muted-foreground hover:text-foreground"
                       />
-
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleShare}
-                        className="px-2 md:px-3"
-                      >
+                      
+                      <Button variant="ghost" size="sm" onClick={handleShare}>
                         <Share2 className="w-4 h-4" />
-                        <span className="ml-1 text-xs md:text-sm hidden md:inline">Share</span>
+                        <span className="ml-1">Share</span>
                       </Button>
                     </div>
                   </div>
@@ -630,39 +631,39 @@ const ArticleDetail = () => {
                 </div>
 
                 {/* Article Content */}
-                <div
+                <div 
                   id="article-content"
-                  className="prose md:prose-lg max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-blockquote:text-foreground prose-code:text-foreground"
+                  className="prose prose-lg max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-blockquote:text-foreground prose-code:text-foreground"
                 >
                   {(() => {
                     try {
                       if (!article.content) return null;
-
+                      
                       const lines = article.content.split('\n');
                       const elements = [];
-
+                      
                       for (let i = 0; i < lines.length; i++) {
                         const line = lines[i];
                         const key = i;
 
                         // Table Detection
-                        if (line.trim().startsWith('|') &&
-                          i + 1 < lines.length &&
-                          lines[i + 1].trim().startsWith('|') &&
-                          (lines[i + 1].includes('---') || lines[i + 1].includes('-'))) {
-
+                        if (line.trim().startsWith('|') && 
+                            i + 1 < lines.length && 
+                            lines[i+1].trim().startsWith('|') && 
+                            (lines[i+1].includes('---') || lines[i+1].includes('-'))) {
+                          
                           const tableLines = [];
                           let j = i;
                           while (j < lines.length && lines[j].trim().startsWith('|')) {
                             tableLines.push(lines[j]);
                             j++;
                           }
-
+                          
                           const headers = tableLines[0].split('|').filter(c => c.trim() !== '').map(c => c.trim());
-                          const rows = tableLines.slice(2).map(rowLine =>
+                          const rows = tableLines.slice(2).map(rowLine => 
                             rowLine.split('|').filter(c => c.trim() !== '').map(c => c.trim())
                           );
-
+                          
                           const parseCell = (text: string) => {
                             let content = text;
                             content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -698,7 +699,7 @@ const ArticleDetail = () => {
                               </table>
                             </div>
                           );
-
+                          
                           i = j - 1;
                           continue;
                         }
@@ -726,18 +727,18 @@ const ArticleDetail = () => {
                             );
                           }
                         } else {
-                          // Fallback for paragraph with inline formatting
-                          let content = line;
-                          content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                          content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
-                          content = content.replace(/`(.*?)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
-                          content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline">$1</a>');
-
-                          if (line.trim() === '') {
-                            elements.push(<br key={key} />);
-                          } else {
-                            elements.push(<p key={key} dangerouslySetInnerHTML={{ __html: content }} />);
-                          }
+                           // Fallback for paragraph with inline formatting
+                           let content = line;
+                           content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                           content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                           content = content.replace(/`(.*?)`/g, '<code class="bg-muted px-1 rounded">$1</code>');
+                           content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline">$1</a>');
+                           
+                           if (line.trim() === '') {
+                             elements.push(<br key={key} />);
+                           } else {
+                             elements.push(<p key={key} dangerouslySetInnerHTML={{ __html: content }} />);
+                           }
                         }
                       }
                       return elements;
@@ -776,22 +777,21 @@ const ArticleDetail = () => {
                     <Button
                       variant="outline"
                       onClick={handleLike}
-                      className={`px-3 md:px-4 ${isLiked ? "border-red-500 text-red-500" : ""}`}
+                      className={isLiked ? "border-red-500 text-red-500" : ""}
                     >
-                      <ThumbsUp className={`w-4 h-4 ${isLiked ? "fill-current" : ""} md:mr-2`} />
-                      <span className="hidden md:inline">Like ({article.likes})</span>
-                      <span className="md:hidden ml-1 text-xs">{article.likes}</span>
+                      <ThumbsUp className={`w-4 h-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
+                      Like ({article.likes})
                     </Button>
-
-                    <Button variant="outline" onClick={handleCommentClick} className="px-3 md:px-4">
-                      <MessageCircle className="w-4 h-4 md:mr-2" />
-                      <span className="hidden md:inline">Comment</span>
+                    
+                    <Button variant="outline" onClick={handleCommentClick}>
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Comment
                     </Button>
                   </div>
-
-                  <Button onClick={handleShare} className="px-3 md:px-4">
-                    <Share2 className="w-4 h-4 md:mr-2" />
-                    <span className="hidden md:inline">Share Article</span>
+                  
+                  <Button onClick={handleShare}>
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share Article
                   </Button>
                 </div>
 
@@ -815,7 +815,7 @@ const ArticleDetail = () => {
                             {authorData.bio}
                           </p>
                         )}
-
+                        
                         {authorData.socialLinks && (
                           <div className="flex items-center space-x-4">
                             {authorData.socialLinks.instagram && (
@@ -844,7 +844,7 @@ const ArticleDetail = () => {
                     </div>
                   </div>
                 )}
-
+                
                 {/* Comments Section */}
                 <div className="mt-8 pt-8 border-t border-border" ref={commentsRef}>
                   <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -855,29 +855,21 @@ const ArticleDetail = () => {
                   {/* Comment Form */}
                   <div className="mb-8 bg-secondary/30 p-6 rounded-lg">
                     <div className="space-y-4">
-                      <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex items-start gap-4">
                         {user && (
-                          <Avatar className="hidden md:flex">
+                          <Avatar>
                             <AvatarImage src={user.avatar} />
                             <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                           </Avatar>
                         )}
-                        <div className="flex-1 flex flex-col gap-3">
-                          <Textarea
-                            placeholder="Share your thoughts..."
+                        <div className="flex-1">
+                          <Textarea 
+                            placeholder="Share your thoughts..." 
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
-                            className="min-h-[100px]"
+                            className="min-h-[100px] mb-2"
                           />
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {user && (
-                                <Avatar className="h-7 w-7 md:hidden">
-                                  <AvatarImage src={user.avatar} />
-                                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                              )}
-                            </div>
+                          <div className="flex justify-end">
                             <Button onClick={handleCommentSubmit} disabled={!newComment.trim() || isSubmitting}>
                               {isSubmitting ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -923,23 +915,23 @@ const ArticleDetail = () => {
             </div>
 
             <div className="lg:col-span-1">
-              <div
+              <div 
                 ref={sidebarRef}
-                className="sticky space-y-6"
+                className="sticky space-y-6" 
                 style={{ top: `${stickyTop}px` }}
               >
-                <div
-                  className="bg-background border border-border rounded-lg p-6"
+                <div 
+                  className="bg-background border border-border rounded-lg p-6" 
                 >
                   <div className="mb-6">
                     <h2 className="inline-block text-lg font-bold text-background bg-foreground px-3 py-2 text-sm uppercase tracking-wide rounded">
                       RELATED POSTS
                     </h2>
                   </div>
-
+                
                   <div className="divide-y divide-border">
                     {relatedArticles.map((relatedArticle) => (
-                      <article
+                      <article 
                         key={relatedArticle.id}
                         className="py-4 group cursor-pointer first:pt-0 last:pb-0"
                         onClick={() => navigate(`/article/${relatedArticle.id}`)}
@@ -964,10 +956,10 @@ const ArticleDetail = () => {
                       </article>
                     ))}
                   </div>
-
+                  
                   <div className="mt-6 pt-6 border-t border-border">
-                    <Button
-                      variant="outline"
+                    <Button 
+                      variant="outline" 
                       className="w-full"
                       onClick={() => navigate('/search')}
                     >
@@ -975,7 +967,7 @@ const ArticleDetail = () => {
                     </Button>
                   </div>
                 </div>
-
+                
                 {/* Ad Space - Only show when hasAd is true */}
                 {hasAd && (
                   <div className="bg-muted border border-border rounded-lg p-6 text-center">
@@ -991,11 +983,11 @@ const ArticleDetail = () => {
           </div>
         </div>
       </main>
-
+      
       <Footer />
-
-      <AuthDialog
-        isOpen={showAuthDialog}
+      
+      <AuthDialog 
+        isOpen={showAuthDialog} 
         onOpenChange={setShowAuthDialog}
         title={authDialogMessage.title || "Sign in required"}
         description={authDialogMessage.description || "You need to be signed in to perform this action."}

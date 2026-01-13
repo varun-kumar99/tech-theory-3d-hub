@@ -94,10 +94,6 @@ const AdminAuth = () => {
       if (isSupabaseConfigured()) {
         try {
           const user = await handleSupabaseLogin(username, password, 'admin');
-          toast({
-            title: "Success",
-            description: `Welcome Admin ${user.name}!`
-          });
           navigate("/admin/dashboard");
           return;
         } catch (supabaseError: any) {
@@ -127,14 +123,6 @@ const AdminAuth = () => {
           user: { name: adminUser.name, email: adminUser.email }
         }));
         
-        const description = isSupabaseConfigured() 
-          ? `Welcome ${adminUser.name}! Please migrate your data in Credential Manager.`
-          : `Welcome ${adminUser.name}!`;
-
-        toast({
-          title: "Success",
-          description: description
-        });
         navigate("/admin/dashboard");
       } else {
          throw new Error("Invalid admin credentials");
@@ -172,10 +160,6 @@ const AdminAuth = () => {
       if (isSupabaseConfigured()) {
         try {
           const user = await handleSupabaseLogin(username, password, 'author');
-          toast({
-            title: "Success",
-            description: `Welcome Author ${user.name}!`
-          });
           navigate("/admin/author-dashboard");
           return;
         } catch (supabaseError: any) {
@@ -201,14 +185,6 @@ const AdminAuth = () => {
           user: { name: authorUser.name, email: authorUser.email }
         }));
         
-        const description = isSupabaseConfigured() 
-          ? `Welcome ${authorUser.name}! Please contact admin to migrate your data.`
-          : `Welcome ${authorUser.name}!`;
-
-        toast({
-          title: "Success",
-          description: description
-        });
         navigate("/admin/author-dashboard");
       } else {
           throw new Error("Invalid author credentials");

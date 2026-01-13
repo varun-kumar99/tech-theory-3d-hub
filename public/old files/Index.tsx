@@ -64,7 +64,7 @@ const Index = () => {
   };
 
   const techArticles = getArticlesByFilter(a => a.category === "Tech");
-
+  
   // Bikes and Cars might be subcategories of Automobile, or main categories depending on data
   const bikesArticles = getArticlesByFilter(a => {
     const isExplicitBike = a.subCategory === "Bikes" || a.category === "Bikes" || (a.category === "Automobile" && a.subCategory === "Bikes");
@@ -73,7 +73,7 @@ const Index = () => {
     const isEvBike = a.subCategory === "EV" && /bike|motorcycle|scooter/i.test(a.title);
     return isExplicitBike || isTagBike || isEvBike;
   });
-
+  
   const carsArticles = getArticlesByFilter(a => {
     const isExplicitCar = a.subCategory === "Cars" || a.category === "Cars" || (a.category === "Automobile" && a.subCategory === "Cars");
     const isTagCar = a.tags?.some(t => t.toLowerCase() === "cars" || t.toLowerCase() === "car");
@@ -81,52 +81,50 @@ const Index = () => {
     const isEvCar = a.subCategory === "EV" && !/bike|motorcycle|scooter/i.test(a.title);
     return isExplicitCar || isTagCar || isEvCar;
   });
-
+  
   const entertainmentArticles = getArticlesByFilter(a => a.category === "Entertainment");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Navbar />
-      <main className="pt-6 pb-12 md:pb-20">
+      <main className="pb-20">
         <HeroSection articles={heroArticles} isLoading={isLoading} />
         <NewsGrid articles={trendingArticles} title="Latest" viewAllLink="/search" isLoading={isLoading} />
 
         {!isLoading && allArticles.length === 0 && (
-          <div className="container mx-auto px-4 text-center py-20 text-gray-700 dark:text-gray-300">
+          <div className="max-w-4xl mx-auto text-center py-20 text-gray-700 dark:text-gray-300">
             <h3 className="text-2xl font-semibold mb-2">No articles found</h3>
             <p className="text-sm">It looks like your database has no published articles or permissions prevent reading them. Check Supabase RLS/policies or try signing out and signing in again.</p>
           </div>
         )}
+        
+        <CategorySection 
+          articles={techArticles} 
+          title="Tech" 
+          viewAllLink="/category/tech" 
+          isLoading={isLoading}
+        />
+        
+        <CategorySection 
+          articles={bikesArticles} 
+          title="Bikes" 
+          viewAllLink="/category/bikes" 
+          isLoading={isLoading}
+        />
 
-        <div className="space-y-12">
-          <CategorySection
-            articles={techArticles}
-            title="Tech"
-            viewAllLink="/category/tech"
-            isLoading={isLoading}
-          />
-
-          <CategorySection
-            articles={bikesArticles}
-            title="Bikes"
-            viewAllLink="/category/bikes"
-            isLoading={isLoading}
-          />
-
-          <CategorySection
-            articles={carsArticles}
-            title="Cars"
-            viewAllLink="/category/cars"
-            isLoading={isLoading}
-          />
-
-          <CategorySection
-            articles={entertainmentArticles}
-            title="Entertainment"
-            viewAllLink="/category/entertainment"
-            isLoading={isLoading}
-          />
-        </div>
+        <CategorySection 
+          articles={carsArticles} 
+          title="Cars" 
+          viewAllLink="/category/cars" 
+          isLoading={isLoading}
+        />
+        
+        <CategorySection 
+          articles={entertainmentArticles} 
+          title="Entertainment" 
+          viewAllLink="/category/entertainment" 
+          isLoading={isLoading}
+        />
       </main>
       <Footer />
     </div>

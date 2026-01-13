@@ -179,7 +179,7 @@ const CategoryPage = () => {
               </div>
 
               {/* Latest Section Skeleton */}
-              <div className="space-y-6 max-w-5xl">
+              <div className="space-y-6">
                 <div className="h-6 w-24 bg-muted animate-pulse rounded mb-6"></div>
                 <div className="grid gap-6">
                   {[1, 2, 3].map((i) => (
@@ -318,7 +318,7 @@ const CategoryPage = () => {
 
               {/* Latest Section */}
               {latestArticles.length > 0 && (
-                <div className="space-y-6 max-w-5xl">
+                <div className="space-y-6">
                   <div className="relative pt-6 mb-6">
                     <div className="absolute top-0 left-0 w-full h-[1px] bg-border/40"></div>
                     <div className="absolute top-0 left-0 w-16 h-[2px] bg-yellow-500"></div>
