@@ -53,15 +53,14 @@ const Index = () => {
     };
   }, []);
 
-  const heroArticles = allArticles.slice(0, 8);
-  const trendingArticles = allArticles.slice(8);
+  const sortedArticles = articleService.sortArticles(allArticles);
+  const heroArticles = sortedArticles.slice(0, 8);
+  const trendingArticles = sortedArticles.slice(8);
 
   // Helper to get recent articles by category or subcategory
   const getArticlesByFilter = (filterFn: (a: Article) => boolean) => {
-    return allArticles
-      .filter(filterFn)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 4);
+    const filtered = allArticles.filter(filterFn);
+    return articleService.sortArticles(filtered).slice(0, 4);
   };
 
   const techArticles = getArticlesByFilter(a => a.category === "Tech");

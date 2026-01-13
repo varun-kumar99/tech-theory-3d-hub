@@ -273,7 +273,9 @@ const AuthorDashboard = () => {
         excerpt: newArticle.excerpt || articleService.generateExcerpt(newArticle.content),
         readTime: articleService.calculateReadTime(newArticle.content),
         image: newArticle.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&h=400&fit=crop",
-        localImages: newArticle.localImages
+        localImages: newArticle.localImages,
+        isTrending: newArticle.isTrending,
+        priority: newArticle.priority
       };
 
       await articleService.saveArticle(article);

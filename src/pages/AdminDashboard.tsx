@@ -117,42 +117,87 @@ const AdminDashboard = () => {
   const updateArticleStatus = async (id: string | number, status: Article['status']) => {
     const article = articles.find(a => String(a.id) === String(id));
     if (article) {
-      const updatedArticle = { ...article, status };
-      await articleService.saveArticle(updatedArticle);
-      const allArticles = await articleService.getAllArticles();
-      setArticles(allArticles);
-      toast({
-        title: "Success",
-        description: `Article status updated to ${status}`
-      });
+      try {
+        const updatedArticle = { ...article, status };
+        await articleService.saveArticle(updatedArticle);
+        const allArticles = await articleService.getAllArticles();
+        setArticles(allArticles);
+        toast({
+          title: "Success",
+          description: `Article status updated to ${status}`
+        });
+      } catch (error) {
+        console.error("Failed to update article status:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update article status. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   const updateArticleTrending = async (id: string | number, isTrending: boolean) => {
     const article = articles.find(a => String(a.id) === String(id));
     if (article) {
-      const updatedArticle = { ...article, isTrending };
-      await articleService.saveArticle(updatedArticle);
-      const allArticles = await articleService.getAllArticles();
-      setArticles(allArticles);
-      toast({
-        title: "Success",
-        description: `Article ${isTrending ? 'added to' : 'removed from'} trending`
-      });
+      try {
+        const updatedArticle = { ...article, isTrending };
+        await articleService.saveArticle(updatedArticle);
+        
+        // Refresh local state
+        const allArticles = await articleService.getAllArticles();
+        setArticles(allArticles);
+        
+        // Verify the update
+        const verifiedArticle = allArticles.find(a => String(a.id) === String(id));
+        if (verifiedArticle?.isTrending === isTrending) {
+          toast({
+            title: "Success",
+            description: `Article ${isTrending ? 'added to' : 'removed from'} trending`
+          });
+        } else {
+          throw new Error("Update not reflected in fetched data");
+        }
+      } catch (error) {
+        console.error("Failed to update trending status:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update trending status. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   const updateArticlePriority = async (id: string | number, priority: Article['priority']) => {
     const article = articles.find(a => String(a.id) === String(id));
     if (article) {
-      const updatedArticle = { ...article, priority };
-      await articleService.saveArticle(updatedArticle);
-      const allArticles = await articleService.getAllArticles();
-      setArticles(allArticles);
-      toast({
-        title: "Success",
-        description: `Article priority updated to ${priority}`
-      });
+      try {
+        const updatedArticle = { ...article, priority };
+        await articleService.saveArticle(updatedArticle);
+        
+        // Refresh local state
+        const allArticles = await articleService.getAllArticles();
+        setArticles(allArticles);
+
+        // Verify the update
+        const verifiedArticle = allArticles.find(a => String(a.id) === String(id));
+        if (verifiedArticle?.priority === priority) {
+          toast({
+            title: "Success",
+            description: `Article priority updated to ${priority}`
+          });
+        } else {
+          throw new Error("Update not reflected in fetched data");
+        }
+      } catch (error) {
+        console.error("Failed to update article priority:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update article priority. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 

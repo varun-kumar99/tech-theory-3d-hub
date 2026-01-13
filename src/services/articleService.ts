@@ -177,6 +177,23 @@ export const articleService = {
     }
   },
 
+  sortArticles: (articles: Article[]): Article[] => {
+    const priorityWeight = { high: 10, medium: 5, low: 1 };
+    
+    return [...articles].sort((a, b) => {
+      // 1. Calculate combined score
+      const scoreA = priorityWeight[a.priority || 'medium'] + (a.isTrending ? 20 : 0);
+      const scoreB = priorityWeight[b.priority || 'medium'] + (b.isTrending ? 20 : 0);
+      
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      
+      // 2. If scores are same, sort by Date (newest first)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+  },
+
   getAllArticles: async (): Promise<Article[]> => {
     let supabaseArticles: Article[] = [];
     
@@ -248,7 +265,7 @@ export const articleService = {
     }
 
     // Sort combined articles by priority, then trending, then date
-    return combined;
+    return articleService.sortArticles(combined);
   },
 
   seedInitialArticles: async (): Promise<void> => {
@@ -413,6 +430,7 @@ export const articleService = {
           .from('articles')
           .select('*')
           .eq('status', 'published')
+          .order('priority', { ascending: false }) // high, medium, low alphabetical order doesn't work well here
           .order('created_at', { ascending: false });
 
         const { data, error } = (await Promise.race([fetchPromise, timeout(15000)])) as any;
@@ -422,7 +440,7 @@ export const articleService = {
           return [];
         }
         console.log("Successfully fetched", data?.length, "articles from Supabase");
-        const mapped = data.map(mapSupabaseToArticle);
+        const mapped = articleService.sortArticles(data.map(mapSupabaseToArticle));
         try {
           const cacheKey = 'cached_published_articles_v1';
           sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), articles: mapped }));
@@ -639,6 +657,13 @@ export const articleService = {
   },
 
   saveArticle: async (article: Article): Promise<void> => {
+    // Clear session cache to ensure fresh data on next fetch
+    try {
+      sessionStorage.removeItem('cached_published_articles_v1');
+    } catch (e) {
+      console.warn('Failed to clear session cache', e);
+    }
+
     if (isSupabaseConfigured()) {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -718,6 +743,13 @@ export const articleService = {
   },
 
   deleteArticle: async (id: string | number): Promise<void> => {
+    // Clear session cache
+    try {
+      sessionStorage.removeItem('cached_published_articles_v1');
+    } catch (e) {
+      console.warn('Failed to clear session cache', e);
+    }
+
     if (isSupabaseConfigured()) {
       const { error } = await supabase
         .from('articles')

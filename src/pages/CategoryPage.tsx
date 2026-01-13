@@ -140,8 +140,8 @@ const CategoryPage = () => {
           return false;
       });
 
-    // Default sort by latest for the new design
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Use centralized sorting for consistency
+    return articleService.sortArticles(filtered);
   }, [currentCategory, articles, category]);
 
   const featuredArticles = filteredArticles.slice(0, 6);
