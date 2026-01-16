@@ -126,7 +126,7 @@ const AuthorDashboard = () => {
     isBold: false,
     isItalic: false,
     isUnderline: false,
-    textColor: "#000000",
+    textColor: "inherit",
     textType: "body" // heading, subheading, body
   });
   
@@ -1388,9 +1388,9 @@ const AuthorDashboard = () => {
                       onChange={(e) => setNewArticle(prev => ({ ...prev, content: e.target.value }))}
                       onPaste={handlePaste}
                       placeholder="Start writing your article here. Use the toolbar above to format your text..."
-                      className="h-[600px] w-full p-4 font-mono text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-y-auto"
+                      className="h-[600px] w-full p-4 font-mono text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-y-auto bg-background text-foreground"
                       style={{
-                        color: editorState.textColor,
+                        color: editorState.textColor !== "inherit" ? editorState.textColor : undefined,
                         fontWeight: editorState.isBold ? 'bold' : 'normal',
                         fontStyle: editorState.isItalic ? 'italic' : 'normal',
                         textDecoration: editorState.isUnderline ? 'underline' : 'none'
