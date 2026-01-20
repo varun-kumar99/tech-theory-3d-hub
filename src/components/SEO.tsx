@@ -39,6 +39,8 @@ const SEO = ({
   // Base URL for canonical tags - replace with your actual domain
   const baseUrl = 'https://techtheory.co.in';
   const canonicalUrl = canonical || `${baseUrl}${window.location.pathname}${window.location.search}`;
+  const defaultImage = `${baseUrl}/tech-theory-logo.png`;
+  const finalOgImage = ogImage ? (ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`) : defaultImage;
 
   return (
     <Helmet>
@@ -55,14 +57,14 @@ const SEO = ({
       <meta property="og:description" content={ogDescription || metaDescription} />
       <meta property="og:type" content={type} />
       <meta property="og:url" content={ogUrl || canonicalUrl} />
-      {ogImage && <meta property="og:image" content={ogImage} />}
+      <meta property="og:image" content={finalOgImage} />
 
       {/* Twitter tags */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:creator" content={twitterHandle} />
       <meta name="twitter:title" content={ogTitle || fullTitle} />
       <meta name="twitter:description" content={ogDescription || metaDescription} />
-      {ogImage && <meta name="twitter:image" content={ogImage} />}
+      <meta name="twitter:image" content={finalOgImage} />
 
       {/* Structured Data */}
       {structuredData && (

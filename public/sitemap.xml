@@ -1,33 +1,123 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://techtheory.co.in/</loc>
-    <lastmod>2024-01-13</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>TECH Theory - Modern Tech News & Reviews</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://techtheory.co.in/about</loc>
-    <lastmod>2024-01-13</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>About TECH Theory</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://techtheory.co.in/contact</loc>
-    <lastmod>2024-01-13</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Contact TECH Theory</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://techtheory.co.in/privacy-policy</loc>
-    <lastmod>2024-01-13</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Privacy Policy - TECH Theory</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://techtheory.co.in/search</loc>
-    <lastmod>2024-01-13</lastmod>
+    <lastmod>2026-01-20</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Search - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/tech</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Technology News - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/ai</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>AI News - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/smartphones</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Smartphones - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/gadgets</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Gadgets - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/automotive</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Automotive - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/movies</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Movies - TECH Theory</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://techtheory.co.in/category/games</loc>
+    <lastmod>2026-01-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://techtheory.co.in/tech-theory-logo.png</image:loc>
+      <image:title>Games - TECH Theory</image:title>
+    </image:image>
   </url>
 </urlset>
