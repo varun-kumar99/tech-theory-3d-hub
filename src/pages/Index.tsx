@@ -90,6 +90,17 @@ const Index = () => {
         title="Home"
         description="Stay ahead with the latest tech news, reviews, and insights. Your premier destination for technology coverage."
         keywords="tech news, reviews, technology, gadgets, future tech"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "TECH Theory",
+          "url": "https://techtheory.co.in/",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://techtheory.co.in/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        }}
       />
       <Navbar />
       <main className="pt-6 pb-12 md:pb-20">

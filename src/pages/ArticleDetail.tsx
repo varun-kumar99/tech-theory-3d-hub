@@ -531,6 +531,9 @@ const ArticleDetail = () => {
     return <div>Loading...</div>;
   }
 
+  const baseUrl = 'https://techtheory.co.in';
+  const absoluteImageUrl = article.image?.startsWith('http') ? article.image : `${baseUrl}${article.image}`;
+
   return (
     <div className="min-h-screen">
       <SEO 
@@ -539,7 +542,7 @@ const ArticleDetail = () => {
         keywords={article.tags?.join(', ')}
         ogTitle={article.title}
         ogDescription={article.excerpt}
-        ogImage={article.image}
+        ogImage={absoluteImageUrl}
         ogUrl={window.location.href}
         type="article"
         structuredData={{
@@ -547,21 +550,25 @@ const ArticleDetail = () => {
           "@graph": [
             {
               "@type": "NewsArticle",
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": window.location.href
+              },
               "headline": article.title,
-              "image": [article.image],
+              "image": [absoluteImageUrl],
               "datePublished": article.date ? (isNaN(new Date(article.date).getTime()) ? new Date().toISOString() : new Date(article.date).toISOString()) : new Date().toISOString(),
               "dateModified": article.date ? (isNaN(new Date(article.date).getTime()) ? new Date().toISOString() : new Date(article.date).toISOString()) : new Date().toISOString(),
               "author": [{
                 "@type": "Person",
                 "name": article.author,
-                "url": `${window.location.origin}/author/${article.authorId}`
+                "url": `${baseUrl}/author/${article.authorId}`
               }],
               "publisher": {
                 "@type": "Organization",
                 "name": "TECH Theory",
                 "logo": {
                   "@type": "ImageObject",
-                  "url": `${window.location.origin}/logo.png`
+                  "url": `${baseUrl}/tech-theory-logo.png`
                 }
               },
               "description": article.excerpt
@@ -573,13 +580,13 @@ const ArticleDetail = () => {
                   "@type": "ListItem",
                   "position": 1,
                   "name": "Home",
-                  "item": window.location.origin
+                  "item": baseUrl
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
                   "name": article.category,
-                  "item": `${window.location.origin}/category/${article.category.toLowerCase()}`
+                  "item": `${baseUrl}/category/${article.category.toLowerCase()}`
                 },
                 {
                   "@type": "ListItem",
