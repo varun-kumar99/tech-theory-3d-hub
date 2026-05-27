@@ -695,6 +695,30 @@ export const articleService = {
       };
 
       try {
+        // Enforce trending articles limit (max 10)
+        if (articleData.is_trending) {
+          const { data: trendingArticles } = await supabase
+            .from('articles')
+            .select('id, created_at')
+            .eq('is_trending', true)
+            .neq('id', article.id || '00000000-0000-0000-0000-000000000000') // Use a dummy UUID if no ID
+            .order('created_at', { ascending: false });
+
+          if (trendingArticles && trendingArticles.length >= 10) {
+            // Unmark articles from the 10th one onwards (since the current one will be the 11th if we count it)
+            // But wait, trendingArticles doesn't include the current one.
+            // So if trendingArticles has 10 items, and we add current one, we'll have 11.
+            // We should keep only the top 9 from trendingArticles and add the current one.
+            const idsToUnmark = trendingArticles.slice(9).map(a => a.id);
+            if (idsToUnmark.length > 0) {
+              await supabase
+                .from('articles')
+                .update({ is_trending: false })
+                .in('id', idsToUnmark);
+            }
+          }
+        }
+
         // Check if ID is a valid UUID (existing Supabase article)
         const isUUID = (id: any) => {
           if (!id) return false;
@@ -731,6 +755,23 @@ export const articleService = {
     }
 
     const articles = await articleService.getAllArticles();
+    
+    // Enforce trending articles limit (max 10) for local storage
+    if (article.isTrending) {
+      const trending = articles
+        .filter(a => a.isTrending && String(a.id) !== String(article.id))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+      if (trending.length >= 10) {
+        const idsToUnmark = trending.slice(9).map(a => String(a.id));
+        articles.forEach(a => {
+          if (idsToUnmark.includes(String(a.id))) {
+            a.isTrending = false;
+          }
+        });
+      }
+    }
+
     const index = articles.findIndex(a => String(a.id) === String(article.id));
     
     if (index >= 0) {
