@@ -117,8 +117,8 @@ const CreateArticle = () => {
 
   const API_KEYS = {
     Ben: import.meta.env.VITE_GEMINI_API_KEY || "",
-    Gwen: "AIzaSyBW76SqMO128GWZzZaZNZdOrdbkNZ5t4Xk",
-    Max: "AIzaSyD6cKvC69opoGLjyrmNmrs1VPG6Xkat7nw"
+    Gwen: import.meta.env.VITE_GEMINI_API_KEY_GWEN || "",
+    Max: import.meta.env.VITE_GEMINI_API_KEY_MAX || ""
   };
 
   const apiKey = API_KEYS[selectedPersona];

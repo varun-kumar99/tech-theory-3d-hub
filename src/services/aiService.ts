@@ -163,12 +163,38 @@ IMPORTANT: You are a ghostwriter.
       if (!generatedText) {
         const errorMessages = errors.map(e => e.message).join(' | ');
         console.error("All Gemini models failed. Errors:", errorMessages);
-        
-        // Check for common issues in the errors
-        if (errorMessages.includes("API key")) {
-          throw new Error("Invalid Gemini API Key. Please check your .env.local file.");
+
+        const fullErrorText = errorMessages.toLowerCase();
+
+        if (fullErrorText.includes("api_key") || fullErrorText.includes("api key") || fullErrorText.includes("apikey")) {
+          if (fullErrorText.includes("consumer") || fullErrorText.includes("referer") || fullErrorText.includes("referrer") || fullErrorText.includes("restriction")) {
+            throw new Error(
+              "Gemini API Key is restricted! In Google Cloud Console, go to APIs & Services → Credentials → Edit your API key. " +
+              "Under 'Application restrictions' either: (a) select 'None', or (b) add 'localhost' and 'localhost:5173' " +
+              "to the 'Website restrictions' list. Also ensure 'Generative Language API' is added under 'API restrictions'."
+            );
+          }
+          throw new Error("Invalid Gemini API Key. Please check your .env.local file and verify the key is correct.");
         }
-        
+
+        if (fullErrorText.includes("quota") || fullErrorText.includes("rate limit") || fullErrorText.includes("429")) {
+          throw new Error("Gemini API quota exceeded. Please wait a moment and try again, or use a different API key (Gwen/Max).");
+        }
+
+        if (fullErrorText.includes("permission") || fullErrorText.includes("403") || fullErrorText.includes("forbidden")) {
+          throw new Error(
+            "Gemini API permission denied. Please ensure the 'Generative Language API' is ENABLED for your project " +
+            "in Google Cloud Console: APIs & Services → Enabled APIs & services → Enable APIs & Services → Search for 'Generative Language API'."
+          );
+        }
+
+        if (fullErrorText.includes("not found") || fullErrorText.includes("404") || fullErrorText.includes("model")) {
+          throw new Error(
+            "Requested Gemini model not found or not available for your API key. Try selecting a different persona, " +
+            "or verify your Google Cloud project has access to Gemini models."
+          );
+        }
+
         throw errors[0] || new Error("Failed to generate content with any available Gemini model.");
       }
 
